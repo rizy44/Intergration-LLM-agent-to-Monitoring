@@ -1,0 +1,21 @@
+apiVersion: 1
+providers:
+- name: DashboardProvider-VMs
+  orgId: 1
+  folder: 'Monitoring VMs'
+  type: file
+  disableDeletion: false
+  updateIntervalSeconds: 10
+  allowUiUpdates: false
+  options:
+    path: /var/lib/grafana/dashboards/vm-monitoring
+- name: DashboardProvider-Azure
+  orgId: 1
+  folder: 'Monitoring Azure Resources'
+  type: file
+  disableDeletion: false
+  updateIntervalSeconds: 10
+  allowUiUpdates: false
+  options:
+    path: /var/lib/grafana/dashboards/azure-monitoring
+    # foldersFromFilesStructure: true

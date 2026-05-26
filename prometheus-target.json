@@ -1,0 +1,572 @@
+{
+  "status": "success",
+  "data": {
+    "activeTargets": [
+      {
+        "discoveredLabels": {
+          "__address__": "5.223.52.243:9100",
+          "__metrics_path__": "/metrics",
+          "__scheme__": "http",
+          "__scrape_interval__": "20s",
+          "__scrape_timeout__": "18s",
+          "hostname": "lite_master_1",
+          "job": "linux-exporters",
+          "os": "linux"
+        },
+        "labels": {
+          "hostname": "lite_master_1",
+          "instance": "5.223.52.243",
+          "job": "linux-exporters",
+          "os": "linux"
+        },
+        "scrapePool": "linux-exporters",
+        "scrapeUrl": "http://5.223.52.243:9100/metrics",
+        "globalUrl": "http://5.223.52.243:9100/metrics",
+        "lastError": "",
+        "lastScrape": "2026-05-25T07:29:50.635873599Z",
+        "lastScrapeDuration": 0.083379212,
+        "health": "up",
+        "scrapeInterval": "20s",
+        "scrapeTimeout": "18s"
+      },
+      {
+        "discoveredLabels": {
+          "__address__": "192.168.100.220:9100",
+          "__metrics_path__": "/metrics",
+          "__scheme__": "http",
+          "__scrape_interval__": "20s",
+          "__scrape_timeout__": "18s",
+          "hostname": "vn-worker_1",
+          "job": "linux-exporters",
+          "os": "linux"
+        },
+        "labels": {
+          "hostname": "vn-worker_1",
+          "instance": "192.168.100.220",
+          "job": "linux-exporters",
+          "os": "linux"
+        },
+        "scrapePool": "linux-exporters",
+        "scrapeUrl": "http://192.168.100.220:9100/metrics",
+        "globalUrl": "http://192.168.100.220:9100/metrics",
+        "lastError": "",
+        "lastScrape": "2026-05-25T07:29:53.893841538Z",
+        "lastScrapeDuration": 0.172859914,
+        "health": "up",
+        "scrapeInterval": "20s",
+        "scrapeTimeout": "18s"
+      },
+      {
+        "discoveredLabels": {
+          "__address__": "192.168.100.213:9100",
+          "__metrics_path__": "/metrics",
+          "__scheme__": "http",
+          "__scrape_interval__": "20s",
+          "__scrape_timeout__": "18s",
+          "hostname": "tl-sv02-agent",
+          "job": "linux-exporters",
+          "os": "linux"
+        },
+        "labels": {
+          "hostname": "tl-sv02-agent",
+          "instance": "192.168.100.213",
+          "job": "linux-exporters",
+          "os": "linux"
+        },
+        "scrapePool": "linux-exporters",
+        "scrapeUrl": "http://192.168.100.213:9100/metrics",
+        "globalUrl": "http://192.168.100.213:9100/metrics",
+        "lastError": "",
+        "lastScrape": "2026-05-25T07:29:59.318420543Z",
+        "lastScrapeDuration": 0.059351574,
+        "health": "up",
+        "scrapeInterval": "20s",
+        "scrapeTimeout": "18s"
+      },
+      {
+        "discoveredLabels": {
+          "__address__": "5.78.94.211:9100",
+          "__metrics_path__": "/metrics",
+          "__scheme__": "http",
+          "__scrape_interval__": "20s",
+          "__scrape_timeout__": "18s",
+          "hostname": "nails_master_1",
+          "job": "linux-exporters",
+          "os": "linux"
+        },
+        "labels": {
+          "hostname": "nails_master_1",
+          "instance": "5.78.94.211",
+          "job": "linux-exporters",
+          "os": "linux"
+        },
+        "scrapePool": "linux-exporters",
+        "scrapeUrl": "http://5.78.94.211:9100/metrics",
+        "globalUrl": "http://5.78.94.211:9100/metrics",
+        "lastError": "",
+        "lastScrape": "2026-05-25T07:29:54.042855354Z",
+        "lastScrapeDuration": 0.458806902,
+        "health": "up",
+        "scrapeInterval": "20s",
+        "scrapeTimeout": "18s"
+      },
+      {
+        "discoveredLabels": {
+          "__address__": "5.223.51.117:9100",
+          "__metrics_path__": "/metrics",
+          "__scheme__": "http",
+          "__scrape_interval__": "20s",
+          "__scrape_timeout__": "18s",
+          "hostname": "lite_agent_cicd",
+          "job": "linux-exporters",
+          "os": "linux"
+        },
+        "labels": {
+          "hostname": "lite_agent_cicd",
+          "instance": "5.223.51.117",
+          "job": "linux-exporters",
+          "os": "linux"
+        },
+        "scrapePool": "linux-exporters",
+        "scrapeUrl": "http://5.223.51.117:9100/metrics",
+        "globalUrl": "http://5.223.51.117:9100/metrics",
+        "lastError": "",
+        "lastScrape": "2026-05-25T07:29:52.47406757Z",
+        "lastScrapeDuration": 0.148032802,
+        "health": "up",
+        "scrapeInterval": "20s",
+        "scrapeTimeout": "18s"
+      },
+      {
+        "discoveredLabels": {
+          "__address__": "5.223.54.100:9100",
+          "__metrics_path__": "/metrics",
+          "__scheme__": "http",
+          "__scrape_interval__": "20s",
+          "__scrape_timeout__": "18s",
+          "hostname": "lite_worker_1",
+          "job": "linux-exporters",
+          "os": "linux"
+        },
+        "labels": {
+          "hostname": "lite_worker_1",
+          "instance": "5.223.54.100",
+          "job": "linux-exporters",
+          "os": "linux"
+        },
+        "scrapePool": "linux-exporters",
+        "scrapeUrl": "http://5.223.54.100:9100/metrics",
+        "globalUrl": "http://5.223.54.100:9100/metrics",
+        "lastError": "",
+        "lastScrape": "2026-05-25T07:30:04.349460182Z",
+        "lastScrapeDuration": 0.13850269,
+        "health": "up",
+        "scrapeInterval": "20s",
+        "scrapeTimeout": "18s"
+      },
+      {
+        "discoveredLabels": {
+          "__address__": "5.223.57.173:9100",
+          "__metrics_path__": "/metrics",
+          "__scheme__": "http",
+          "__scrape_interval__": "20s",
+          "__scrape_timeout__": "18s",
+          "hostname": "lite_db",
+          "job": "linux-exporters",
+          "os": "linux"
+        },
+        "labels": {
+          "hostname": "lite_db",
+          "instance": "5.223.57.173",
+          "job": "linux-exporters",
+          "os": "linux"
+        },
+        "scrapePool": "linux-exporters",
+        "scrapeUrl": "http://5.223.57.173:9100/metrics",
+        "globalUrl": "http://5.223.57.173:9100/metrics",
+        "lastError": "",
+        "lastScrape": "2026-05-25T07:29:50.664040758Z",
+        "lastScrapeDuration": 0.140570177,
+        "health": "up",
+        "scrapeInterval": "20s",
+        "scrapeTimeout": "18s"
+      },
+      {
+        "discoveredLabels": {
+          "__address__": "5.78.123.225:9100",
+          "__metrics_path__": "/metrics",
+          "__scheme__": "http",
+          "__scrape_interval__": "20s",
+          "__scrape_timeout__": "18s",
+          "hostname": "elk_prod",
+          "job": "linux-exporters",
+          "os": "linux"
+        },
+        "labels": {
+          "hostname": "elk_prod",
+          "instance": "5.78.123.225",
+          "job": "linux-exporters",
+          "os": "linux"
+        },
+        "scrapePool": "linux-exporters",
+        "scrapeUrl": "http://5.78.123.225:9100/metrics",
+        "globalUrl": "http://5.78.123.225:9100/metrics",
+        "lastError": "",
+        "lastScrape": "2026-05-25T07:29:52.632930235Z",
+        "lastScrapeDuration": 0.48185902,
+        "health": "up",
+        "scrapeInterval": "20s",
+        "scrapeTimeout": "18s"
+      },
+      {
+        "discoveredLabels": {
+          "__address__": "5.78.121.250:9100",
+          "__metrics_path__": "/metrics",
+          "__scheme__": "http",
+          "__scrape_interval__": "20s",
+          "__scrape_timeout__": "18s",
+          "hostname": "nails_agent_cicd",
+          "job": "linux-exporters",
+          "os": "linux"
+        },
+        "labels": {
+          "hostname": "nails_agent_cicd",
+          "instance": "5.78.121.250",
+          "job": "linux-exporters",
+          "os": "linux"
+        },
+        "scrapePool": "linux-exporters",
+        "scrapeUrl": "http://5.78.121.250:9100/metrics",
+        "globalUrl": "http://5.78.121.250:9100/metrics",
+        "lastError": "",
+        "lastScrape": "2026-05-25T07:29:51.012613719Z",
+        "lastScrapeDuration": 0.466860321,
+        "health": "up",
+        "scrapeInterval": "20s",
+        "scrapeTimeout": "18s"
+      },
+      {
+        "discoveredLabels": {
+          "__address__": "5.78.65.9:9100",
+          "__metrics_path__": "/metrics",
+          "__scheme__": "http",
+          "__scrape_interval__": "20s",
+          "__scrape_timeout__": "18s",
+          "hostname": "nails_worker_1",
+          "job": "linux-exporters",
+          "os": "linux"
+        },
+        "labels": {
+          "hostname": "nails_worker_1",
+          "instance": "5.78.65.9",
+          "job": "linux-exporters",
+          "os": "linux"
+        },
+        "scrapePool": "linux-exporters",
+        "scrapeUrl": "http://5.78.65.9:9100/metrics",
+        "globalUrl": "http://5.78.65.9:9100/metrics",
+        "lastError": "",
+        "lastScrape": "2026-05-25T07:29:56.578568861Z",
+        "lastScrapeDuration": 0.505214561,
+        "health": "up",
+        "scrapeInterval": "20s",
+        "scrapeTimeout": "18s"
+      },
+      {
+        "discoveredLabels": {
+          "__address__": "192.168.100.230:9100",
+          "__metrics_path__": "/metrics",
+          "__scheme__": "http",
+          "__scrape_interval__": "20s",
+          "__scrape_timeout__": "18s",
+          "hostname": "vn-log",
+          "job": "linux-exporters",
+          "os": "linux"
+        },
+        "labels": {
+          "hostname": "vn-log",
+          "instance": "192.168.100.230",
+          "job": "linux-exporters",
+          "os": "linux"
+        },
+        "scrapePool": "linux-exporters",
+        "scrapeUrl": "http://192.168.100.230:9100/metrics",
+        "globalUrl": "http://192.168.100.230:9100/metrics",
+        "lastError": "",
+        "lastScrape": "2026-05-25T07:29:59.737635165Z",
+        "lastScrapeDuration": 0.100217079,
+        "health": "up",
+        "scrapeInterval": "20s",
+        "scrapeTimeout": "18s"
+      },
+      {
+        "discoveredLabels": {
+          "__address__": "192.168.100.211:9100",
+          "__metrics_path__": "/metrics",
+          "__scheme__": "http",
+          "__scrape_interval__": "20s",
+          "__scrape_timeout__": "18s",
+          "hostname": "tl-sv03",
+          "job": "linux-exporters",
+          "os": "linux"
+        },
+        "labels": {
+          "hostname": "tl-sv03",
+          "instance": "192.168.100.211",
+          "job": "linux-exporters",
+          "os": "linux"
+        },
+        "scrapePool": "linux-exporters",
+        "scrapeUrl": "http://192.168.100.211:9100/metrics",
+        "globalUrl": "http://192.168.100.211:9100/metrics",
+        "lastError": "",
+        "lastScrape": "2026-05-25T07:29:52.554617408Z",
+        "lastScrapeDuration": 0.0823245,
+        "health": "up",
+        "scrapeInterval": "20s",
+        "scrapeTimeout": "18s"
+      },
+      {
+        "discoveredLabels": {
+          "__address__": "192.168.100.250:9100",
+          "__metrics_path__": "/metrics",
+          "__scheme__": "http",
+          "__scrape_interval__": "20s",
+          "__scrape_timeout__": "18s",
+          "hostname": "vn-master_1",
+          "job": "linux-exporters",
+          "os": "linux"
+        },
+        "labels": {
+          "hostname": "vn-master_1",
+          "instance": "192.168.100.250",
+          "job": "linux-exporters",
+          "os": "linux"
+        },
+        "scrapePool": "linux-exporters",
+        "scrapeUrl": "http://192.168.100.250:9100/metrics",
+        "globalUrl": "http://192.168.100.250:9100/metrics",
+        "lastError": "",
+        "lastScrape": "2026-05-25T07:30:03.656873716Z",
+        "lastScrapeDuration": 0.098103852,
+        "health": "up",
+        "scrapeInterval": "20s",
+        "scrapeTimeout": "18s"
+      },
+      {
+        "discoveredLabels": {
+          "__address__": "192.168.100.240:9100",
+          "__metrics_path__": "/metrics",
+          "__scheme__": "http",
+          "__scrape_interval__": "20s",
+          "__scrape_timeout__": "18s",
+          "hostname": "vn-worker_2",
+          "job": "linux-exporters",
+          "os": "linux"
+        },
+        "labels": {
+          "hostname": "vn-worker_2",
+          "instance": "192.168.100.240",
+          "job": "linux-exporters",
+          "os": "linux"
+        },
+        "scrapePool": "linux-exporters",
+        "scrapeUrl": "http://192.168.100.240:9100/metrics",
+        "globalUrl": "http://192.168.100.240:9100/metrics",
+        "lastError": "",
+        "lastScrape": "2026-05-25T07:29:53.094558989Z",
+        "lastScrapeDuration": 0.123028951,
+        "health": "up",
+        "scrapeInterval": "20s",
+        "scrapeTimeout": "18s"
+      },
+      {
+        "discoveredLabels": {
+          "__address__": "192.168.100.215:9100",
+          "__metrics_path__": "/metrics",
+          "__scheme__": "http",
+          "__scrape_interval__": "20s",
+          "__scrape_timeout__": "18s",
+          "hostname": "tl-sv01",
+          "job": "linux-exporters",
+          "os": "linux"
+        },
+        "labels": {
+          "hostname": "tl-sv01",
+          "instance": "192.168.100.215",
+          "job": "linux-exporters",
+          "os": "linux"
+        },
+        "scrapePool": "linux-exporters",
+        "scrapeUrl": "http://192.168.100.215:9100/metrics",
+        "globalUrl": "http://192.168.100.215:9100/metrics",
+        "lastError": "",
+        "lastScrape": "2026-05-25T07:29:56.760514818Z",
+        "lastScrapeDuration": 0.06137631,
+        "health": "up",
+        "scrapeInterval": "20s",
+        "scrapeTimeout": "18s"
+      },
+      {
+        "discoveredLabels": {
+          "__address__": "5.78.113.101:9100",
+          "__metrics_path__": "/metrics",
+          "__scheme__": "http",
+          "__scrape_interval__": "20s",
+          "__scrape_timeout__": "18s",
+          "hostname": "nails_db",
+          "job": "linux-exporters",
+          "os": "linux"
+        },
+        "labels": {
+          "hostname": "nails_db",
+          "instance": "5.78.113.101",
+          "job": "linux-exporters",
+          "os": "linux"
+        },
+        "scrapePool": "linux-exporters",
+        "scrapeUrl": "http://5.78.113.101:9100/metrics",
+        "globalUrl": "http://5.78.113.101:9100/metrics",
+        "lastError": "",
+        "lastScrape": "2026-05-25T07:29:51.694537438Z",
+        "lastScrapeDuration": 0.509853185,
+        "health": "up",
+        "scrapeInterval": "20s",
+        "scrapeTimeout": "18s"
+      },
+      {
+        "discoveredLabels": {
+          "__address__": "vn-prometheus.wecopytrade.com",
+          "__metrics_path__": "/federate",
+          "__param_match[]": "{job=\"apiserver\"}",
+          "__scheme__": "https",
+          "__scrape_interval__": "20s",
+          "__scrape_timeout__": "18s",
+          "job": "prometheus-federates"
+        },
+        "labels": {
+          "instance": "vn-prometheus.wecopytrade.com:443",
+          "job": "prometheus-federates"
+        },
+        "scrapePool": "prometheus-federates",
+        "scrapeUrl": "https://vn-prometheus.wecopytrade.com:443/federate?match%5B%5D=%7Bjob%3D%22apiserver%22%7D&match%5B%5D=%7Bjob%3D%22coredns%22%7D&match%5B%5D=%7Bjob%3D%22kube-controller-manager%22%7D&match%5B%5D=%7Bjob%3D%22kube-state-metrics%22%7D&match%5B%5D=%7Bjob%3D%22kubelet%22%7D&match%5B%5D=%7Bjob%3D%22kube-proxy%22%7D&match%5B%5D=%7Bjob%3D%22tradingservicebots%22%7D&match%5B%5D=%7B__name__%3D~%22up%22%7D",
+        "globalUrl": "https://vn-prometheus.wecopytrade.com:443/federate?match%5B%5D=%7Bjob%3D%22apiserver%22%7D&match%5B%5D=%7Bjob%3D%22coredns%22%7D&match%5B%5D=%7Bjob%3D%22kube-controller-manager%22%7D&match%5B%5D=%7Bjob%3D%22kube-state-metrics%22%7D&match%5B%5D=%7Bjob%3D%22kubelet%22%7D&match%5B%5D=%7Bjob%3D%22kube-proxy%22%7D&match%5B%5D=%7Bjob%3D%22tradingservicebots%22%7D&match%5B%5D=%7B__name__%3D~%22up%22%7D",
+        "lastError": "server returned HTTP status 503 Service Unavailable",
+        "lastScrape": "2026-05-25T07:29:53.801973668Z",
+        "lastScrapeDuration": 0.000949312,
+        "health": "down",
+        "scrapeInterval": "20s",
+        "scrapeTimeout": "18s"
+      },
+      {
+        "discoveredLabels": {
+          "__address__": "192.168.100.190:9182",
+          "__metrics_path__": "/metrics",
+          "__scheme__": "http",
+          "__scrape_interval__": "20s",
+          "__scrape_timeout__": "18s",
+          "hostname": "vn_window_agent",
+          "job": "windows-exporters",
+          "os": "windows"
+        },
+        "labels": {
+          "hostname": "vn_window_agent",
+          "instance": "192.168.100.190",
+          "job": "windows-exporters",
+          "os": "windows"
+        },
+        "scrapePool": "windows-exporters",
+        "scrapeUrl": "http://192.168.100.190:9182/metrics",
+        "globalUrl": "http://192.168.100.190:9182/metrics",
+        "lastError": "",
+        "lastScrape": "2026-05-25T07:30:01.226585426Z",
+        "lastScrapeDuration": 0.331054584,
+        "health": "up",
+        "scrapeInterval": "20s",
+        "scrapeTimeout": "18s"
+      },
+      {
+        "discoveredLabels": {
+          "__address__": "192.168.100.6:9182",
+          "__metrics_path__": "/metrics",
+          "__scheme__": "http",
+          "__scrape_interval__": "20s",
+          "__scrape_timeout__": "18s",
+          "hostname": "vn_backup_teams",
+          "job": "windows-exporters",
+          "os": "windows"
+        },
+        "labels": {
+          "hostname": "vn_backup_teams",
+          "instance": "192.168.100.6",
+          "job": "windows-exporters",
+          "os": "windows"
+        },
+        "scrapePool": "windows-exporters",
+        "scrapeUrl": "http://192.168.100.6:9182/metrics",
+        "globalUrl": "http://192.168.100.6:9182/metrics",
+        "lastError": "",
+        "lastScrape": "2026-05-25T07:30:02.69461386Z",
+        "lastScrapeDuration": 0.323766945,
+        "health": "up",
+        "scrapeInterval": "20s",
+        "scrapeTimeout": "18s"
+      },
+      {
+        "discoveredLabels": {
+          "__address__": "192.168.100.214:9182",
+          "__metrics_path__": "/metrics",
+          "__scheme__": "http",
+          "__scrape_interval__": "20s",
+          "__scrape_timeout__": "18s",
+          "hostname": "tl_trading_service",
+          "job": "windows-exporters",
+          "os": "windows"
+        },
+        "labels": {
+          "hostname": "tl_trading_service",
+          "instance": "192.168.100.214",
+          "job": "windows-exporters",
+          "os": "windows"
+        },
+        "scrapePool": "windows-exporters",
+        "scrapeUrl": "http://192.168.100.214:9182/metrics",
+        "globalUrl": "http://192.168.100.214:9182/metrics",
+        "lastError": "",
+        "lastScrape": "2026-05-25T07:30:01.085701677Z",
+        "lastScrapeDuration": 0.383242881,
+        "health": "up",
+        "scrapeInterval": "20s",
+        "scrapeTimeout": "18s"
+      },
+      {
+        "discoveredLabels": {
+          "__address__": "192.168.100.195:9182",
+          "__metrics_path__": "/metrics",
+          "__scheme__": "http",
+          "__scrape_interval__": "20s",
+          "__scrape_timeout__": "18s",
+          "hostname": "vn_trading_service",
+          "job": "windows-exporters",
+          "os": "windows"
+        },
+        "labels": {
+          "hostname": "vn_trading_service",
+          "instance": "192.168.100.195",
+          "job": "windows-exporters",
+          "os": "windows"
+        },
+        "scrapePool": "windows-exporters",
+        "scrapeUrl": "http://192.168.100.195:9182/metrics",
+        "globalUrl": "http://192.168.100.195:9182/metrics",
+        "lastError": "",
+        "lastScrape": "2026-05-25T07:29:55.641112972Z",
+        "lastScrapeDuration": 0.291741797,
+        "health": "up",
+        "scrapeInterval": "20s",
+        "scrapeTimeout": "18s"
+      }
+    ],
+    "droppedTargets": []
+  }
+}

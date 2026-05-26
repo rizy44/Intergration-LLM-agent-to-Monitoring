@@ -1,0 +1,56 @@
+{{ define "teams.card" }}
+{
+  "@type": "MessageCard",
+  "@context": "http://schema.org/extensions",
+  "themeColor": "{{- if eq .Status "resolved" -}}2DC72D{{- else if eq .CommonLabels.severity "critical" -}}8C1A1A{{- else if eq .CommonLabels.severity "warning" -}}FFA500{{- else -}}808080{{- end }}",
+  "summary": "Prometheus Alerts - {{ .CommonLabels.severity | title }}",
+  "title": "{{- if eq .Status "resolved" -}}✅ Resolved Alert: {{ else }}🔥 {{ .CommonLabels.severity | title }} Alert: {{ end }}{{ .CommonLabels.alertname }}",
+  "sections": [
+    {
+      "text": "**📄 Error Description:** {{ .CommonAnnotations.description }}",
+      "markdown": true
+    },
+    {{- range $index, $alert := .Alerts }}{{- if $index }},{{- end }}
+    {
+      "facts": [
+      {{- $c := counter }}
+
+      {{- if $alert.Labels.hostname }}
+      {{- if call $c }},{{ end }}
+      {
+        "name": "💻 Hostname:",
+        "value": "{{ $alert.Labels.hostname }}"
+      }
+      {{- end }}
+
+      {{- if $alert.Labels.instance }}
+      {{- if call $c }},{{ end }}
+      {
+        "name": "🌐 Instance:",
+        "value": "{{ $alert.Labels.instance }}"
+      }
+      {{- end }}
+
+      {{- if and $alert.Labels.job $alert.Annotations.value (ne $alert.Annotations.value "") }}
+      {{- if call $c }},{{- end }}
+      {
+        "name": "🔑 Value:",
+        "value": "{{ $alert.Annotations.value }}"
+      }
+      {{- end }}
+    ],
+      "markdown": true
+    }
+    {{- end }}
+  ],
+  "potentialAction": [
+    {
+      "@type": "OpenUri",
+      "name": "📊 View in Prometheus",
+      "targets": [
+        { "os": "default", "uri": "http://192.168.100.253:9090/targets" }
+      ]
+    }
+  ]
+}
+{{ end }}

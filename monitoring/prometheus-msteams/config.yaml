@@ -1,0 +1,3 @@
+connectors:
+- name: "teams-alerts"
+  url: "https://ceolfglobaltech.webhook.office.com/webhookb2/15587677-f29e-4019-842a-afc5b3debd0e@7eb270e6-7c74-4159-a883-ca73dd7f5868/IncomingWebhook/fa40dabd7dc041d396e317ae58b10475/49c31669-1793-43a9-a667-ae6c90347754/V2SJQB_JdC41qdqi6tv_bWHsDcIM0sDkkh9wDht287zUQ1"

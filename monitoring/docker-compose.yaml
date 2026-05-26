@@ -1,0 +1,79 @@
+services:
+  prometheus:
+    image: prom/prometheus:v2.44.0
+    user: root
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      - ./prometheus/:/etc/prometheus/
+      - ./prometheus/alert-rules:/etc/prometheus/alert-rules
+      - /prometheus-storage:/prometheus/data
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --web.config.file=/etc/prometheus/auth.yml
+      - --storage.tsdb.retention.time=15d
+      - --storage.tsdb.path=/prometheus/data
+      - "--web.enable-lifecycle" # Reload config via curl -X POST http://<prometheus-ip>:9090/-/reload
+    networks:
+      - monitoring
+  prometheus-msteams:
+    image: docker.io/bzon/prometheus-msteams:v1.1.4
+    user: root
+    container_name: prometheus-msteams
+    ports:
+      - "2000:2000"
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      - ./prometheus-msteams/config.yaml:/tmp/config.yaml
+      - ./prometheus-msteams/template.tmpl:/tmp/template.tmpl
+    environment:
+      - CONFIG_FILE=/tmp/config.yaml
+      - TEMPLATE_FILE=/tmp/template.tmpl
+    command:
+      - --config=/tmp/config.yaml
+      - --template-file=/tmp/template.tmpl
+    restart: unless-stopped
+    networks:
+      - monitoring
+  alert-manager:
+    image: prom/alertmanager:v0.28.1
+    user: root
+    container_name: alert-manager
+    ports:
+      - "9093:9093"
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      - ./alertmanager:/etc/alertmanager
+      - /alertmanager-storage:/alertmanager/data
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yaml
+      - --web.config.file=/etc/alertmanager/auth.yaml
+      - --storage.path=/alertmanager/data
+    networks:
+      - monitoring
+  grafana:
+    image: grafana/grafana:12.3.0-17814087142
+    user: root
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      - ./grafana/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+      - ./grafana/dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+      - ./grafana/grafana.ini:/etc/grafana/grafana.ini
+      - /grafana-storage:/var/lib/grafana
+    env_file:
+      - ./grafana/.grafana.secret
+    networks:
+      - monitoring
+networks:
+  monitoring:
+    driver: bridge

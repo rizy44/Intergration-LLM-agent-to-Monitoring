@@ -1,0 +1,136 @@
+global:
+  scrape_interval: "20s"
+  evaluation_interval: "15s"
+  scrape_timeout: "18s"
+
+scrape_configs:
+  - job_name: 'prometheus-federates'
+    scheme: https
+    static_configs:
+      - targets: [vn-prometheus.wecopytrade.com]
+    metrics_path: /federate
+    params:
+      'match[]':
+        - '{job="apiserver"}'
+        - '{job="coredns"}'
+        - '{job="kube-controller-manager"}'
+        - '{job="kube-state-metrics"}'
+        - '{job="kubelet"}'
+        - '{job="kube-proxy"}'
+        - '{job="tradingservicebots"}'
+        - '{__name__=~"up"}'
+  - job_name: 'windows-exporters'
+    metrics_path: /metrics
+    basic_auth:
+      username: admin
+      password: rPGrJFhUq0IVbVAt
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: '([^:]+)(:[0-9]+)?'
+        replacement: '${1}'
+    static_configs:
+      - targets: ["192.168.100.195:9182"]
+        labels:
+          hostname: "vn_trading_service"
+          os: windows
+#      - targets: ["136.244.98.85:9182"]
+#        labels:
+#          hostname: "mt5-test"
+#          os: windows
+      - targets: ["192.168.100.190:9182"]
+        labels:
+          hostname: "vn_window_agent"
+          os: windows
+      - targets: ["192.168.100.6:9182"]
+        labels:
+          hostname: "vn_backup_teams"
+          os: windows
+      - targets: ["192.168.100.214:9182"]
+        labels:
+          hostname: "tl_trading_service"
+          os: windows
+
+  - job_name: 'linux-exporters'
+    metrics_path: /metrics
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: '([^:]+)(:[0-9]+)?'
+        replacement: '${1}'
+    static_configs:
+      - targets: ["192.168.100.250:9100"]
+        labels:
+          hostname: "vn-master_1"
+          os: linux
+      - targets: ["192.168.100.220:9100"]
+        labels:
+          hostname: "vn-worker_1"
+          os: linux
+      - targets: ["192.168.100.240:9100"]
+        labels:
+          hostname: "vn-worker_2"
+          os: linux
+      - targets: ["192.168.100.230:9100"]
+        labels:
+          hostname: "vn-log"
+          os: linux
+      - targets: ["192.168.100.215:9100"]
+        labels:
+          hostname: "tl-sv01"
+          os: linux
+      - targets: ["192.168.100.213:9100"]
+        labels:
+          hostname: "tl-sv02-agent"
+          os: linux
+      - targets: ["192.168.100.211:9100"]
+        labels:
+          hostname: "tl-sv03"
+          os: linux
+      - targets: ["5.78.121.250:9100"]
+        labels:
+          hostname: "nails_agent_cicd"
+          os: linux
+      - targets: ["5.78.94.211:9100"]
+        labels:
+          hostname: "nails_master_1"
+          os: linux
+      - targets: ["5.78.65.9:9100"]
+        labels:
+          hostname: "nails_worker_1"
+          os: linux
+      - targets: ["5.78.113.101:9100"]
+        labels:
+          hostname: "nails_db"
+          os: linux
+      - targets: ["5.223.51.117:9100"]
+        labels:
+          hostname: "lite_agent_cicd"
+          os: linux
+      - targets: ["5.223.52.243:9100"]
+        labels:
+          hostname: "lite_master_1"
+          os: linux
+      - targets: ["5.223.54.100:9100"]
+        labels:
+          hostname: "lite_worker_1"
+          os: linux
+      - targets: ["5.223.57.173:9100"]
+        labels:
+          hostname: "lite_db"
+          os: linux
+      - targets: ["5.78.123.225:9100"]
+        labels:
+          hostname: "elk_prod"
+          os: linux
+rule_files:
+- "alert-rules/*.yaml"
+
+alerting:
+  alertmanagers:
+  - static_configs:
+    - targets: [ "alert-manager:9093" ]
+    scheme: http
+    basic_auth:
+      username: admin
+      password: admin1234

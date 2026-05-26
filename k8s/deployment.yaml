@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aks-metrics-service
+  namespace: monitoring
+  labels:
+    app: aks-metrics-service
+    phase: "1"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aks-metrics-service
+  template:
+    metadata:
+      labels:
+        app: aks-metrics-service
+    spec:
+      # Run as non-root
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: metrics-service
+          image: your-registry/aks-metrics-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+              name: http
+          envFrom:
+            - secretRef:
+                name: aks-metrics-assistant-secrets
+          env:
+            - name: LOG_LEVEL
+              value: "INFO"
+            - name: PROMETHEUS_TIMEOUT_SECONDS
+              value: "10"
+            - name: PROMETHEUS_MAX_RESULTS
+              value: "100"
+            - name: ALLOWED_RANGES
+              value: "1h,6h,12h,24h,2d,7d"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          # Read-only root filesystem for security
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+      restartPolicy: Always

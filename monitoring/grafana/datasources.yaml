@@ -1,0 +1,41 @@
+apiVersion: 1
+datasources:
+- name: Prometheus
+  type: prometheus
+  url: http://prometheus:9090
+  basicAuth: true
+  basicAuthUser: admin
+  secureJsonData:
+    basicAuthPassword: admin1234
+  access: proxy
+  isDefault: true
+- name: Alertmanager
+  type: alertmanager
+  url: http://alert-manager:9093
+  access: proxy
+  jsonData:
+    implementation: prometheus
+    handleGrafanaManagedAlerts: false
+- type: grafana-azure-monitor-datasource
+  name: uat-monitor-workspace
+  access: proxy
+  jsonData:
+    azureCloud: azuremonitor
+    authType: clientsecret
+    tenantId: 7eb270e6-7c74-4159-a883-ca73dd7f5868
+    clientId: c611f642-d3b2-4eae-98ff-cefe2abae8c0
+    subscriptionId: 753d40c4-040a-435d-98b1-8b6236a4e873
+  secureJsonData:
+    clientSecret: <client-secret>
+- type: prometheus
+  name: uat-monitor-workspace-prometheus
+  url: https://uat-monitor-workspace-z91u.canadacentral.prometheus.monitor.azure.com
+  basicAuth: false
+  jsonData:
+    azureCredentials:
+      authType: clientsecret
+      azureCloud: AzureCloud
+      clientId: c611f642-d3b2-4eae-98ff-cefe2abae8c0
+      tenantId: 7eb270e6-7c74-4159-a883-ca73dd7f5868
+  secureJsonData:
+    azureClientSecret: <client-secret>
