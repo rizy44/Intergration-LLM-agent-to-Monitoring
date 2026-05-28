@@ -19,6 +19,9 @@ scrape_configs:
         - '{job="kube-proxy"}'
         - '{job="tradingservicebots"}'
         - '{__name__=~"up"}'
+    relabel_configs:
+      - target_label: cluster
+        replacement: vn
   - job_name: 'windows-exporters'
     metrics_path: /metrics
     basic_auth:
@@ -123,6 +126,54 @@ scrape_configs:
         labels:
           hostname: "elk_prod"
           os: linux
+  - job_name: 'tl-kubelet'
+    scheme: https
+    tls_config:
+      insecure_skip_verify: true
+    bearer_token: eyJhbGciOiJSUzI1NiIsImtpZCI6Inc4V0c0Z3haWmd6TlpwV2htS1Z6eWlDMnJXM0UtR2pwQWdjbE1jR2dRWDQifQ.eyJhdWQiOlsiaHR0cHM6Ly9rdWJlcm5ldGVzLmRlZmF1bHQuc3ZjLmNsdXN0ZXIubG9jYWwiXSwiZXhwIjoxODExMzI2MDExLCJpYXQiOjE3Nzk3OTAwMTEsImlzcyI6Imh0dHBzOi8va3ViZXJuZXRlcy5kZWZhdWx0LnN2Yy5jbHVzdGVyLmxvY2FsIiwia3ViZXJuZXRlcy5pbyI6eyJuYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsInNlcnZpY2VhY2NvdW50Ijp7Im5hbWUiOiJwcm9tZXRoZXVzLWNlbnRyYWwiLCJ1aWQiOiI4ZjYzYzg3Yy1iMDMzLTQzN2QtYjc0Ni04NzVkMjZjZmNkMDIifX0sIm5iZiI6MTc3OTc5MDAxMSwic3ViIjoic3lzdGVtOnNlcnZpY2VhY2NvdW50Omt1YmUtc3lzdGVtOnByb21ldGhldXMtY2VudHJhbCJ9.ZhvuCgLOtN4OO68PLYaMvNgB_iBgceC2ch5fENBWU79TBLVPWritbghoTh3PQPs0e8ec3LUcNgttkbLwvkgSZ37X5jinIP0NIWQog5TdZwhhyN4JF5_N1o6CJTEfSGscjbYrLISbaCu2yzBegEU1O4FToiwO-4W3yECHvjpBNXMaONQf-rL8r86CGa77_heBCyJ4qmsoAsugjB5KXzKujG6lXLY_68ZXxh8PV22sll594wCAod4DlYjaAHJ_4oNkNlf1MPaLRyFRf43GNg7bY90GP6knyyvIPj2yrNxKRMwVKveWwCsloDEPwYKwgRiuRjNjuBxED00wJIp6fTdhWw
+    metrics_path: /metrics
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: '([^:]+)(:[0-9]+)?'
+        replacement: '${1}'
+      - target_label: cluster
+        replacement: tl
+    static_configs:
+      - targets: ["192.168.100.215:10250"]
+        labels:
+          hostname: "tl-sv01"
+      - targets: ["192.168.100.213:10250"]
+        labels:
+          hostname: "tl-sv02-agent"
+      - targets: ["192.168.100.211:10250"]
+        labels:
+          hostname: "tl-sv03"
+
+  - job_name: 'tl-cadvisor'
+    scheme: https
+    tls_config:
+      insecure_skip_verify: true
+    bearer_token: eyJhbGciOiJSUzI1NiIsImtpZCI6Inc4V0c0Z3haWmd6TlpwV2htS1Z6eWlDMnJXM0UtR2pwQWdjbE1jR2dRWDQifQ.eyJhdWQiOlsiaHR0cHM6Ly9rdWJlcm5ldGVzLmRlZmF1bHQuc3ZjLmNsdXN0ZXIubG9jYWwiXSwiZXhwIjoxODExMzI2MDExLCJpYXQiOjE3Nzk3OTAwMTEsImlzcyI6Imh0dHBzOi8va3ViZXJuZXRlcy5kZWZhdWx0LnN2Yy5jbHVzdGVyLmxvY2FsIiwia3ViZXJuZXRlcy5pbyI6eyJuYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsInNlcnZpY2VhY2NvdW50Ijp7Im5hbWUiOiJwcm9tZXRoZXVzLWNlbnRyYWwiLCJ1aWQiOiI4ZjYzYzg3Yy1iMDMzLTQzN2QtYjc0Ni04NzVkMjZjZmNkMDIifX0sIm5iZiI6MTc3OTc5MDAxMSwic3ViIjoic3lzdGVtOnNlcnZpY2VhY2NvdW50Omt1YmUtc3lzdGVtOnByb21ldGhldXMtY2VudHJhbCJ9.ZhvuCgLOtN4OO68PLYaMvNgB_iBgceC2ch5fENBWU79TBLVPWritbghoTh3PQPs0e8ec3LUcNgttkbLwvkgSZ37X5jinIP0NIWQog5TdZwhhyN4JF5_N1o6CJTEfSGscjbYrLISbaCu2yzBegEU1O4FToiwO-4W3yECHvjpBNXMaONQf-rL8r86CGa77_heBCyJ4qmsoAsugjB5KXzKujG6lXLY_68ZXxh8PV22sll594wCAod4DlYjaAHJ_4oNkNlf1MPaLRyFRf43GNg7bY90GP6knyyvIPj2yrNxKRMwVKveWwCsloDEPwYKwgRiuRjNjuBxED00wJIp6fTdhWw
+    metrics_path: /metrics/cadvisor
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: '([^:]+)(:[0-9]+)?'
+        replacement: '${1}'
+      - target_label: cluster
+        replacement: tl
+    static_configs:
+      - targets: ["192.168.100.215:10250"]
+        labels:
+          hostname: "tl-sv01"
+      - targets: ["192.168.100.213:10250"]
+        labels:
+          hostname: "tl-sv02-agent"
+      - targets: ["192.168.100.211:10250"]
+        labels:
+          hostname: "tl-sv03"
+
 rule_files:
 - "alert-rules/*.yaml"
 

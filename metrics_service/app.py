@@ -29,9 +29,8 @@ from typing import Annotated
 from fastapi import FastAPI, HTTPException, Query, Request
 from pydantic import BaseModel
 
-from .ai_agent import analyze_metrics
-from .config import get_settings, validate_label, validate_range, validate_source_name
-from .conversation_agent import parse_user_message
+from .chat_controller import ChatControllerResult, handle_chat_message
+from .config import get_settings, validate_hostname, validate_label, validate_range, validate_source_name
 from .daily_report import run_daily_report
 from .source_registry import get_registry
 from .teams_bot import (
@@ -40,8 +39,6 @@ from .teams_bot import (
     extract_sender_name,
     validate_teams_signature,
 )
-from .teams_sender import send_to_teams
-from .tool_dispatcher import ToolDispatchError, dispatch_tool
 from .tools.cluster_health import get_cluster_health
 from .tools.namespace_usage import (
     get_namespace_resource_usage,
@@ -85,24 +82,12 @@ app = FastAPI(
 # ---------------------------------------------------------------------------
 
 SOURCE_QUERY = Query(
-    default=None,
     description=(
         "Optional source name (from /sources). "
         "If omitted, the backend auto-selects based on metric type."
     ),
 )
-RANGE_QUERY = Query(default="24h", description="Time range e.g. 1h, 6h, 24h, 7d")
-
-# Keywords that indicate remediation requests (Phase 1: read-only)
-REMEDIATION_KEYWORDS = [
-    "restart", "delete", "scale", "rollback", "roll back",
-    "deploy", "patch", "apply", "kubectl", "exec", "port-forward",
-]
-REMEDIATION_PREFIXES = (
-    "restart", "scale", "rollback", "roll back", "delete pod",
-    "kubectl", "exec into", "port-forward", "apply manifest",
-)
-
+RANGE_QUERY = Query(description="Time range e.g. 1h, 6h, 24h, 7d")
 
 # ---------------------------------------------------------------------------
 # Request / Response models
@@ -198,16 +183,27 @@ def cluster_health(source: Annotated[str | None, SOURCE_QUERY] = None):
         raise _runtime_to_http(exc)
 
 
+HOSTNAME_QUERY = Query(
+    description=(
+        "Optional hostname filter. Single hostname (e.g. tl-sv02-agent) or "
+        "comma-separated list (e.g. tl-sv01,tl-sv03)."
+    ),
+)
+
+
 @app.get("/metrics/node-cpu", tags=["Metrics"])
 def node_cpu(
     range: Annotated[str, RANGE_QUERY] = "24h",
     source: Annotated[str | None, SOURCE_QUERY] = None,
+    hostname: Annotated[str | None, HOSTNAME_QUERY] = None,
 ):
-    """Return per-node CPU usage over the given range."""
+    """Return per-node CPU usage. Filter by hostname or comma-separated list."""
     try:
         validate_range(range, get_settings().allowed_ranges_set)
         _validate_source(source)
-        return get_node_cpu_usage(range=range, source_override=source)
+        if hostname:
+            validate_hostname(hostname)
+        return get_node_cpu_usage(range=range, hostname=hostname, source_override=source)
     except (ValueError, KeyError) as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except RuntimeError as exc:
@@ -218,12 +214,15 @@ def node_cpu(
 def node_memory(
     range: Annotated[str, RANGE_QUERY] = "24h",
     source: Annotated[str | None, SOURCE_QUERY] = None,
+    hostname: Annotated[str | None, HOSTNAME_QUERY] = None,
 ):
-    """Return per-node memory usage."""
+    """Return per-node memory usage. Filter by hostname or comma-separated list."""
     try:
         validate_range(range, get_settings().allowed_ranges_set)
         _validate_source(source)
-        return get_node_memory_usage(range=range, source_override=source)
+        if hostname:
+            validate_hostname(hostname)
+        return get_node_memory_usage(range=range, hostname=hostname, source_override=source)
     except (ValueError, KeyError) as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except RuntimeError as exc:
@@ -332,111 +331,25 @@ def chat(request: ChatRequest):
     """
     On-demand metric question via direct API call.
 
-    Accepts a natural language question and optional filters.
-    Returns raw metric JSON + Claude AI explanation.
-    Phase 1: read-only. Remediation requests are refused.
+    Accepts a natural language question and returns a Claude AI explanation
+    alongside the raw metric data. Phase 1: read-only.
     """
     question = request.question.strip()
     if not question:
         raise HTTPException(status_code=400, detail="Question must not be empty.")
 
-    source_name = request.source
-    if source_name:
-        try:
-            validate_source_name(source_name)
-            get_registry().get_by_name(source_name)
-        except (ValueError, KeyError) as exc:
-            raise HTTPException(status_code=400, detail=str(exc))
+    result = handle_chat_message(question, send_to_teams=False)
 
-    q_lower = question.lower()
-    if any(kw in q_lower for kw in REMEDIATION_KEYWORDS):
-        return ChatResponse(
-            question=question,
-            tool_used="none",
-            source_used={},
-            metric_data={},
-            ai_explanation=(
-                "Phase 1 is read-only. I cannot restart, scale, roll back, "
-                "or modify workloads. I can help inspect metrics and suggest "
-                "read-only investigation steps."
-            ),
-        )
-
-    tool_name, metric_data = _route_to_tool(request)
-    source_info = metric_data.get("source", {})
-
-    try:
-        explanation = analyze_metrics(
-            tool_name=tool_name,
-            metric_data=metric_data,
-            user_question=question,
-        )
-    except RuntimeError as exc:
-        raise _runtime_to_http(exc)
+    if result.status == "error":
+        raise HTTPException(status_code=400, detail=result.reply)
 
     return ChatResponse(
         question=question,
-        tool_used=tool_name,
-        source_used=source_info,
-        metric_data=metric_data,
-        ai_explanation=explanation,
+        tool_used=result.tool_used,
+        source_used=result.metric_data.get("source", {}),
+        metric_data=result.metric_data,
+        ai_explanation=result.reply,
     )
-
-
-def _route_to_tool(request: ChatRequest) -> tuple[str, dict]:
-    """Keyword-based routing to the appropriate metric tool."""
-    q = request.question.lower()
-    ns = request.namespace or "default"
-    svc = request.service or ""
-    rng = request.range or get_settings().prometheus_default_range
-    src = request.source
-
-    try:
-        if request.namespace:
-            validate_label(ns, "namespace")
-        if request.service:
-            validate_label(svc, "service")
-        validate_range(rng, get_settings().allowed_ranges_set)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-
-    try:
-        if "restart" in q:
-            return "get_pod_restart_count", get_pod_restart_count(
-                namespace=ns, range=rng, source_override=src
-            )
-        if "unhealthy" in q or "not ready" in q or "failing" in q:
-            return "get_unhealthy_pods", get_unhealthy_pods(
-                namespace=ns, source_override=src
-            )
-        if (("top" in q or "highest" in q or "consuming" in q)
-                and ("cpu" in q or "memory" in q or "resource" in q)):
-            return "get_top_resource_consuming_pods", get_top_resource_consuming_pods(
-                namespace=ns, range=rng, source_override=src
-            )
-        if "cpu" in q and "node" in q:
-            return "get_node_cpu_usage", get_node_cpu_usage(range=rng, source_override=src)
-        if "memory" in q and "node" in q:
-            return "get_node_memory_usage", get_node_memory_usage(range=rng, source_override=src)
-        if "error" in q or "5xx" in q:
-            if not svc:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Please specify the service name when asking about error rates.",
-                )
-            return "get_service_error_rate", get_service_error_rate(
-                service=svc, namespace=ns, range=rng, source_override=src
-            )
-        if "cpu" in q or "memory" in q or "usage" in q or "resource" in q:
-            return "get_namespace_resource_usage", get_namespace_resource_usage(
-                namespace=ns, range=rng, source_override=src
-            )
-        return "get_cluster_health", get_cluster_health(source_override=src)
-
-    except (ValueError, KeyError) as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    except RuntimeError as exc:
-        raise _runtime_to_http(exc)
 
 
 # ---------------------------------------------------------------------------
@@ -449,124 +362,26 @@ def teams_chat(request: TeamsChatRequest):
     """
     Two-agent Teams chat flow for external API callers (e.g. Power Automate).
 
-    Flow:
-      1. Raw user message  -> Conversation Agent  -> structured metric request.
-      2. Structured request -> Tool Dispatcher    -> metric JSON from Prometheus.
-      3. Metric JSON        -> Explanation Agent  -> human-readable reply.
-      4. Reply              -> Teams webhook      -> user sees the answer in Teams.
-
-    Note: also sends the reply to the configured Teams Incoming Webhook.
-    Use POST /teams/webhook instead for direct Teams Outgoing Webhook integration
-    (reply is returned in the HTTP response body, no Incoming Webhook call needed).
+    Sends the reply to the configured Teams Incoming Webhook and also returns
+    it in the HTTP response body. Use POST /teams/webhook for direct Teams
+    Outgoing Webhook integration (reply travels via HTTP response only).
     """
-    raw_message = request.message.strip()
-    if not raw_message:
-        raise HTTPException(status_code=400, detail="Message must not be empty.")
-
-    msg_lower = raw_message.lower()
-    if any(kw in msg_lower for kw in REMEDIATION_PREFIXES):
-        reply = (
-            "Phase 1 is read-only. I cannot restart, scale, roll back, or modify "
-            "workloads. I can help inspect metrics and suggest read-only investigation "
-            "steps. Try asking: 'Show pod restarts in namespace prod' or "
-            "'Is the cluster healthy?'"
-        )
-        _try_send_teams(reply, title="AKS Assistant - Out of Scope")
-        return TeamsChatResponse(
-            status="refused",
-            reply=reply,
-            agent_decision={"status": "refused", "message": reply},
-        )
-
-    try:
-        decision = parse_user_message(raw_message)
-    except RuntimeError as exc:
-        error_reply = (
-            "The AI service is temporarily unavailable. Please try again shortly. "
-            f"({exc})"
-        )
-        _try_send_teams(error_reply, title="AKS Assistant - Service Error")
-        return TeamsChatResponse(status="error", reply=error_reply, agent_decision={})
-
-    agent_status = decision.get("status")
-
-    if agent_status == "needs_clarification":
-        reply = decision.get("message", "Could you provide more details?")
-        _try_send_teams(reply, title="AKS Assistant - Clarification Needed")
-        return TeamsChatResponse(
-            status="needs_clarification", reply=reply, agent_decision=decision
-        )
-
-    if agent_status == "refused":
-        reply = decision.get("message", "That request is out of scope for Phase 1.")
-        _try_send_teams(reply, title="AKS Assistant - Out of Scope")
-        return TeamsChatResponse(status="refused", reply=reply, agent_decision=decision)
-
-    metric_request = decision.get("request", {})
-    try:
-        tool_name, metric_data = dispatch_tool(metric_request)
-    except ToolDispatchError as exc:
-        reply = str(exc)
-        _try_send_teams(reply, title="AKS Assistant - Invalid Request")
-        return TeamsChatResponse(
-            status="needs_clarification", reply=reply, agent_decision=decision
-        )
-    except RuntimeError as exc:
-        error_reply = (
-            f"Could not retrieve metrics: {exc} "
-            "Please check Prometheus connectivity and try again."
-        )
-        _try_send_teams(error_reply, title="AKS Assistant - Metrics Error")
-        return TeamsChatResponse(
-            status="error",
-            reply=error_reply,
-            tool_used=metric_request.get("tool", ""),
-            agent_decision=decision,
-        )
-
-    try:
-        explanation = analyze_metrics(
-            tool_name=tool_name,
-            metric_data=metric_data,
-            user_question=raw_message,
-        )
-    except RuntimeError as exc:
-        error_reply = (
-            "Metrics were retrieved but AI explanation is temporarily unavailable. "
-            f"({exc})"
-        )
-        _try_send_teams(error_reply, title="AKS Assistant - AI Error")
-        return TeamsChatResponse(
-            status="error",
-            reply=error_reply,
-            tool_used=tool_name,
-            agent_decision=decision,
-        )
-
-    sender_prefix = f"**{request.user}** asked: {raw_message}\n\n" if request.user else ""
-    full_reply = sender_prefix + explanation
-    _try_send_teams(full_reply, title="AKS Metrics Assistant")
-
-    logger.info(
-        "teams/chat answered: tool=%s source=%s",
-        tool_name,
-        metric_data.get("source", {}).get("name", "unknown"),
+    result = handle_chat_message(
+        request.message,
+        user=request.user,
+        send_to_teams=True,
+        title="AKS Metrics Assistant",
     )
+
+    if result.status == "error":
+        raise HTTPException(status_code=400, detail=result.reply)
 
     return TeamsChatResponse(
-        status="answered",
-        reply=explanation,
-        tool_used=tool_name,
-        agent_decision=decision,
+        status=result.status,
+        reply=result.reply,
+        tool_used=result.tool_used,
+        agent_decision=result.agent_decision,
     )
-
-
-def _try_send_teams(message: str, title: str = "AKS Metrics Assistant") -> None:
-    """Send to Teams Incoming Webhook. Logs but never raises on failure."""
-    try:
-        send_to_teams(message, title=title)
-    except Exception:
-        logger.warning("Could not send message to Teams (non-fatal).", exc_info=True)
 
 
 # ---------------------------------------------------------------------------
@@ -630,72 +445,8 @@ async def teams_outgoing_webhook(request: Request):
         "teams/webhook message from='%s' text_len=%d", sender, len(raw_text)
     )
 
-    msg_lower = raw_text.lower()
-    if any(kw in msg_lower for kw in REMEDIATION_PREFIXES):
-        return build_teams_response(
-            "Phase 1 is read-only.\n\n"
-            "I cannot restart, scale, roll back, or modify workloads.\n\n"
-            "I can help you inspect metrics. Try:\n"
-            "- *Show pod restarts in namespace prod*\n"
-            "- *Is the cluster healthy?*\n"
-            "- *Top CPU consumers in namespace default*"
-        )
-
-    # Step 1: Conversation Agent
-    try:
-        decision = parse_user_message(raw_text)
-    except RuntimeError as exc:
-        logger.error("Conversation Agent error: %s", exc)
-        return build_teams_response(
-            "The AI service is temporarily unavailable. Please try again shortly."
-        )
-
-    agent_status = decision.get("status")
-
-    if agent_status == "needs_clarification":
-        return build_teams_response(
-            decision.get("message", "Could you provide more details?")
-        )
-
-    if agent_status == "refused":
-        return build_teams_response(
-            decision.get("message", "That request is out of Phase 1 scope.")
-        )
-
-    # Step 2: Tool Dispatcher
-    metric_request = decision.get("request", {})
-    try:
-        tool_name, metric_data = dispatch_tool(metric_request)
-    except ToolDispatchError as exc:
-        return build_teams_response(str(exc))
-    except RuntimeError as exc:
-        return build_teams_response(
-            f"Could not retrieve metrics: {exc}\n\n"
-            "Please check Prometheus connectivity and try again."
-        )
-
-    # Step 3: Explanation Agent
-    try:
-        explanation = analyze_metrics(
-            tool_name=tool_name,
-            metric_data=metric_data,
-            user_question=raw_text,
-        )
-    except RuntimeError as exc:
-        return build_teams_response(
-            f"Metrics retrieved but AI explanation failed: {exc}"
-        )
-
-    sender_line = f"*{sender} asked:* {raw_text}\n\n" if sender else ""
-    full_reply = sender_line + explanation
-
-    logger.info(
-        "teams/webhook answered: tool=%s source=%s",
-        tool_name,
-        metric_data.get("source", {}).get("name", "unknown"),
-    )
-
-    return build_teams_response(full_reply)
+    result = handle_chat_message(raw_text, user=sender, send_to_teams=False)
+    return build_teams_response(result.reply)
 
 
 # ---------------------------------------------------------------------------

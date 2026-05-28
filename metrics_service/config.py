@@ -4,10 +4,15 @@ config.py - Centralised configuration for the Metrics Service.
 
 import re
 from functools import lru_cache
+from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Resolve .env relative to this file so it works regardless of cwd
+_ENV_FILE = Path(__file__).parent.parent / ".env"
 
 ALLOWED_RANGES_DEFAULT = {"1h", "6h", "12h", "24h", "2d", "7d"}
 _SAFE_LABEL = re.compile(r"^[a-z0-9][a-z0-9\-\.]{0,62}$")
+_SAFE_HOSTNAME = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9\-\_\.]{0,62}$")
 
 
 def validate_range(value, allowed=None):
@@ -29,9 +34,24 @@ def validate_source_name(name):
     return validate_label(name, "source name")
 
 
+def validate_hostname(value: str) -> str:
+    """Validate a hostname or comma-separated hostname list."""
+    parts = [p.strip() for p in value.split(",") if p.strip()]
+    if not parts:
+        raise ValueError("hostname must not be empty.")
+    for part in parts:
+        if not _SAFE_HOSTNAME.match(part):
+            raise ValueError(
+                f"Invalid hostname '{part}'. "
+                "Use alphanumeric characters, hyphens, underscores, or dots. "
+                "Multiple hostnames can be comma-separated."
+            )
+    return value
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=_ENV_FILE,
         env_file_encoding="utf-8",
         case_sensitive=False,
     )
@@ -40,9 +60,9 @@ class Settings(BaseSettings):
     prometheus_sources: str = ""
 
     # Legacy single-source fallback
-    prometheus_url: str = "http://localhost:9090"
-    prometheus_username: str = ""
-    prometheus_password: str = ""
+    prometheus_url: str = "http://192.168.100.230:9090"
+    prometheus_username: str = "admin"
+    prometheus_password: str = "admin1234"
 
     # Query behaviour
     prometheus_timeout_seconds: int = 10

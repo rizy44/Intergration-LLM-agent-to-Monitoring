@@ -29,7 +29,7 @@ spec:
               image: your-registry/aks-metrics-service:latest
               imagePullPolicy: Always
               # Run the daily_report module directly
-              command: ["python", "-m", "metrics-service.daily_report"]
+              command: ["python", "-m", "metrics_service.daily_report"]
               envFrom:
                 - secretRef:
                     name: aks-metrics-assistant-secrets

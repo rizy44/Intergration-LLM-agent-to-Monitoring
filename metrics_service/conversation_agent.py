@@ -2,8 +2,9 @@
 conversation_agent.py — Conversation Agent (first Claude pass).
 
 This agent receives a raw user message from Teams or the chatbox and
-decides what metric query to run — or asks for clarification, or refuses
-a request that falls outside Phase 1 scope.
+decides what metric query to run — or asks for clarification, refuses
+a request that falls outside Phase 1 scope, or returns unsupported for
+valid metric questions that have no Phase 1 controlled tool.
 
 The agent NEVER generates PromQL.
 The agent NEVER calls Prometheus directly.
@@ -24,7 +25,9 @@ The agent must always return valid JSON with one of three shapes:
 
   {"status": "needs_clarification", "message": "<question for user>"}
 
-  {"status": "refused", "message": "<reason — no remediation details>"}
+  {"status": "refused",     "message": "<reason — no remediation details>"}
+
+  {"status": "unsupported", "message": "<valid metric question, no Phase 1 tool>"}
 
 Allowed tools (must match ALLOWED_TOOLS below exactly):
   get_cluster_health
@@ -80,7 +83,7 @@ suggest any action other than which backend tool to call.
 === OUTPUT FORMAT ===
 
 You must always return ONLY raw JSON — no markdown, no commentary, no prose.
-One of these three shapes:
+One of these four shapes:
 
 If you have enough information to call a tool:
 {"status": "ready", "request": {"tool": "<tool_name>", "namespace": "<ns or null>", "service": "<svc or null>", "range": "<range or null>", "source": "<source or null>"}}
@@ -88,8 +91,11 @@ If you have enough information to call a tool:
 If you need more information from the user:
 {"status": "needs_clarification", "message": "<one clear question>"}
 
-If the request is out of scope for Phase 1 (remediation, scaling, rollbacks, kubectl, PromQL, etc.):
+If the request asks for remediation, infrastructure modification, kubectl, PromQL, or any write action:
 {"status": "refused", "message": "<brief explanation of why it is out of scope>"}
+
+If the request is a valid read-only metric question but no Phase 1 controlled tool covers it:
+{"status": "unsupported", "message": "<acknowledge the valid question, explain no Phase 1 tool exists, list what is supported>"}
 
 === ALLOWED TOOLS ===
 
@@ -117,8 +123,10 @@ If no range is given and a range is required, use "24h" as default.
 4. If the user asks about a namespace but does not say which one, ask for clarification.
 5. If the user asks about service errors but does not say which service, ask for clarification.
 6. If the request is ambiguous but can be reasonably mapped to a tool, prefer "ready".
-7. If no tool matches the request, return "refused" with a message explaining
-   that this query is not supported in Phase 1 and listing the supported queries.
+7. If no tool matches the request but it is a valid read-only metric question,
+   return "unsupported" — NOT "refused" — with a message acknowledging the valid
+   intent and listing the supported queries.
+   Only return "refused" for remediation, write actions, or kubectl requests.
 8. Never include credentials, URLs, internal hostnames, or PromQL in any output.
 9. The "source" field is optional — set it to null unless the user explicitly
    mentions a specific data source by name.
@@ -137,6 +145,7 @@ def parse_user_message(user_message: str) -> dict[str, Any]:
       {"status": "ready",               "request": {...}}
       {"status": "needs_clarification", "message": "..."}
       {"status": "refused",             "message": "..."}
+      {"status": "unsupported",         "message": "..."}
 
     Raises RuntimeError on Anthropic API failure.
     """
@@ -211,7 +220,7 @@ def _parse_and_validate(raw: str) -> dict[str, Any]:
         }
 
     status = parsed.get("status")
-    if status not in ("ready", "needs_clarification", "refused"):
+    if status not in ("ready", "needs_clarification", "refused", "unsupported"):
         logger.error("ConversationAgent returned unknown status: %s", status)
         return {
             "status": "needs_clarification",
@@ -226,10 +235,10 @@ def _parse_and_validate(raw: str) -> dict[str, Any]:
         tool = request.get("tool", "")
         if tool not in ALLOWED_TOOLS:
             logger.warning(
-                "ConversationAgent chose non-whitelisted tool '%s'. Refusing.", tool
+                "ConversationAgent chose non-whitelisted tool '%s'. Returning unsupported.", tool
             )
             return {
-                "status": "refused",
+                "status": "unsupported",
                 "message": (
                     f"The tool '{tool}' is not available in Phase 1. "
                     "Supported queries: cluster health, node CPU/memory, "
