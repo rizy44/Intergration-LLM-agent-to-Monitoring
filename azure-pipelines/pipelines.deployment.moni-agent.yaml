@@ -15,7 +15,7 @@ extends:
     ServiceName: 'moni-agent'
     ImageName: 'moni-agent'
     VariableGroupNamePrefix: 'MoniAgent-<env>'
-    ServiceConnection: 'LFGLOBALTECH-CONTRIBUTOR-PORTAL-DataPlatform'
+    ServiceConnection: 'LFGLOBALTECH-CONTRIBUTOR-PORTAL-Administrator'
     DockerfilePath: 'Dockerfile'
     DockerfileContext: '.'
     ServicePath: '.'
