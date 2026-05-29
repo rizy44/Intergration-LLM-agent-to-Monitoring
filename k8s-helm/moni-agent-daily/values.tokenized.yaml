@@ -18,8 +18,15 @@ moni-agent-daily:
       cpu: "__MONI_AGENT_LIMIT_CPU__"
       memory: "__MONI_AGENT_LIMIT_MEMORY__"
 
-  nodeSelector:
-    kubernetes.io/os: linux
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: kubernetes.io/os
+                operator: In
+                values:
+                  - linux
 
   env:
     # Prometheus multi-source (JSON array — overrides individual vars below when set)
