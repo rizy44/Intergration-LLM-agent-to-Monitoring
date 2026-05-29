@@ -1,4 +1,4 @@
-name: Moni Agent - $(Build.BuildId)
+name: Moni Agent Daily - $(Build.BuildId)
 
 trigger: none
 
@@ -12,7 +12,7 @@ resources:
 extends:
   template: pipeline.deployment.yaml@pipeline-templates
   parameters:
-    ServiceName: 'moni-agent'
+    ServiceName: 'moni-agent-daily'
     ImageName: 'moni-agent'
     VariableGroupNamePrefix: 'MoniAgent-<env>'
     ServiceConnection: 'REPLACE_WITH_SERVICE_CONNECTION_NAME'
@@ -21,4 +21,4 @@ extends:
     ServicePath: '.'
     isDeployAks: true
     isDeployAppService: false
-    isBuildStage: true
+    isBuildStage: false
