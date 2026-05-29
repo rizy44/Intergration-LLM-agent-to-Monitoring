@@ -1,0 +1,22 @@
+{{- define "deploy-bot.service" -}}
+{{- if and .config.service .config.service.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+    name: {{ include "deploy-bot.fullname" . }}-{{ .name }}
+    labels:
+        {{- include "deploy-bot.labels" . | nindent 4 }}
+spec:
+    type: {{ .config.service.type | default "ClusterIP" }}
+    ports:
+        - port: {{ .config.service.port }}
+            targetPort: {{ .config.service.targetPort | default .config.service.port }}
+            protocol: {{ .config.service.protocol | default "TCP" }}
+            name: {{ .config.service.name | default "http" }}
+            {{- if .config.service.nodePort }}
+            nodePort: {{ .config.service.nodePort }}
+            {{- end }}
+    selector:
+        {{- include "deploy-bot.selectorLabels" . | nindent 4 }}
+{{- end }}
+{{- end }}

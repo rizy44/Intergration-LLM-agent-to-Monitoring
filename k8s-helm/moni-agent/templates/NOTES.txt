@@ -1,0 +1,9 @@
+moni-agent deployed successfully.
+
+To access the service locally:
+  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "deploy-bot.name" . }},app.kubernetes.io/instance={{ .Release.Name }},app.kubernetes.io/component=moni-agent" -o jsonpath="{.items[0].metadata.name}")
+  echo "Visit http://127.0.0.1:8000"
+  kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME 8000:8000
+
+To check health:
+  kubectl --namespace {{ .Release.Namespace }} exec $POD_NAME -- curl -s http://localhost:8000/health

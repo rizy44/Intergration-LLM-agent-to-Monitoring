@@ -1,0 +1,23 @@
+trigger:
+  - main
+
+resources:
+  repositories:
+    - repository: templates
+      type: git
+      name: DevOps-Repo/Pipeline_Templates
+      ref: refs/heads/main
+
+extends:
+  template: pipeline.deployment.yaml@templates
+  parameters:
+    ServiceConnection: "REPLACE_WITH_SERVICE_CONNECTION_NAME"
+    VariableGroupNamePrefix: "AksMetricsAgent-<env>-VarGroup"
+    ServiceName: "moni-agent"
+    ImageName: "moni-agent"
+    DockerfilePath: "Dockerfile"
+    DockerfileContext: "."
+    ServicePath: "."
+    Env: "dev"
+    isDeployAks: true
+    isBuildStage: true

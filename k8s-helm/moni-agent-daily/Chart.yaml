@@ -1,0 +1,6 @@
+apiVersion: v2
+name: moni-agent-daily
+description: Helm chart for AKS metrics assistant daily report CronJob
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
