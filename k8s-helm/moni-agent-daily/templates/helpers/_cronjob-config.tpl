@@ -42,6 +42,10 @@ spec:
           nodeSelector:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+          {{- with .config.affinity }}
+          affinity:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- with .config.tolerations }}
           tolerations:
             {{- toYaml . | nindent 12 }}
