@@ -94,6 +94,7 @@ def dispatch_tool(request: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     service       = (request.get("service") or "").strip()
     cluster       = (request.get("cluster") or "").strip()
     workload_name = (request.get("workload_name") or "").strip()
+    hostname      = (request.get("hostname") or "").strip() or None
     range_str     = (request.get("range") or settings.prometheus_default_range).strip()
     source        = (request.get("source") or None)
 
@@ -142,12 +143,12 @@ def dispatch_tool(request: dict[str, Any]) -> tuple[str, dict[str, Any]]:
             raise ToolDispatchError(str(exc)) from exc
 
     logger.info(
-        "Dispatching tool=%s cluster=%s namespace=%s service=%s range=%s source=%s",
-        tool_name, cluster or "—", namespace or "—", service or "—", range_str, source or "auto",
+        "Dispatching tool=%s cluster=%s namespace=%s service=%s hostname=%s range=%s source=%s",
+        tool_name, cluster or "—", namespace or "—", service or "—", hostname or "—", range_str, source or "auto",
     )
 
     fn = ALLOWED_TOOL_DISPATCH[tool_name]
-    metric_data = _call_tool(fn, tool_name, namespace, service, cluster, workload_name, range_str, source)
+    metric_data = _call_tool(fn, tool_name, namespace, service, cluster, workload_name, hostname, range_str, source)
     return tool_name, metric_data
 
 
@@ -163,6 +164,7 @@ def _call_tool(
     service: str,
     cluster: str,
     workload_name: str,
+    hostname: str | None,
     range_str: str,
     source: str | None,
 ) -> dict[str, Any]:
@@ -172,7 +174,7 @@ def _call_tool(
         return fn(source_override=source)
 
     if tool_name in ("get_node_cpu_usage", "get_node_memory_usage"):
-        return fn(range=range_str, source_override=source)
+        return fn(range=range_str, hostname=hostname, source_override=source)
 
     if tool_name == "get_pod_restart_count":
         if not namespace:
