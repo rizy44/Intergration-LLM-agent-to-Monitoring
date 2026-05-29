@@ -10,7 +10,7 @@ resources:
       ref: refs/heads/main
 
 extends:
-  template: pipeline.deployment.yaml@pipeline-templates
+  template: pipeline.moni-agent.yaml@pipeline-templates
   parameters:
     ServiceName: 'moni-agent'
     ImageName: 'moni-agent'
