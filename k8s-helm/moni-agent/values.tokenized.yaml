@@ -54,31 +54,17 @@ moni-agent:
                   - linux
 
   env:
-    # Prometheus multi-source (JSON array — overrides individual vars below when set)
-    - name: PROMETHEUS_SOURCES
-      value: "__PROMETHEUS_SOURCES__"
-
-    # In-cluster Prometheus
-    - name: PROMETHEUS_AKS_NAME
-      value: "__PROMETHEUS_AKS_NAME__"
+    # In-cluster Prometheus — credentials and URL vary per environment
     - name: PROMETHEUS_AKS_URL
       value: "__PROMETHEUS_AKS_URL__"
-    - name: PROMETHEUS_AKS_AUTH_TYPE
-      value: "__PROMETHEUS_AKS_AUTH_TYPE__"
     - name: PROMETHEUS_AKS_USERNAME
       value: "__PROMETHEUS_AKS_USERNAME__"
     - name: PROMETHEUS_AKS_PASSWORD
       value: "__PROMETHEUS_AKS_PASSWORD__"
-    - name: PROMETHEUS_AKS_DESCRIPTION
-      value: "__PROMETHEUS_AKS_DESCRIPTION__"
 
-    # Azure Monitor Managed Prometheus
-    - name: PROMETHEUS_AZURE_NAME
-      value: "__PROMETHEUS_AZURE_NAME__"
+    # Azure Monitor Managed Prometheus — Azure AD secrets
     - name: PROMETHEUS_AZURE_URL
       value: "__PROMETHEUS_AZURE_URL__"
-    - name: PROMETHEUS_AZURE_AUTH_TYPE
-      value: "__PROMETHEUS_AZURE_AUTH_TYPE__"
     - name: PROMETHEUS_AZURE_TENANT_ID
       value: "__PROMETHEUS_AZURE_TENANT_ID__"
     - name: PROMETHEUS_AZURE_CLIENT_ID
@@ -87,20 +73,8 @@ moni-agent:
       value: "__PROMETHEUS_AZURE_CLIENT_SECRET__"
     - name: PROMETHEUS_AZURE_SUBSCRIPTION_ID
       value: "__PROMETHEUS_AZURE_SUBSCRIPTION_ID__"
-    - name: PROMETHEUS_AZURE_DESCRIPTION
-      value: "__PROMETHEUS_AZURE_DESCRIPTION__"
 
-    # Prometheus query settings
-    - name: PROMETHEUS_TIMEOUT_SECONDS
-      value: "__PROMETHEUS_TIMEOUT_SECONDS__"
-    - name: PROMETHEUS_MAX_RESULTS
-      value: "__PROMETHEUS_MAX_RESULTS__"
-    - name: PROMETHEUS_DEFAULT_RANGE
-      value: "__PROMETHEUS_DEFAULT_RANGE__"
-    - name: ALLOWED_RANGES
-      value: "__ALLOWED_RANGES__"
-
-    # Daily report scope
+    # Daily report scope — varies per environment
     - name: DAILY_REPORT_SOURCES
       value: "__DAILY_REPORT_SOURCES__"
     - name: DAILY_REPORT_NAMESPACES
@@ -109,10 +83,6 @@ moni-agent:
     # OpenAI
     - name: OPENAI_API_KEY
       value: "__OPENAI_API_KEY__"
-    - name: OPENAI_MODEL
-      value: "__OPENAI_MODEL__"
-    - name: OPENAI_MAX_TOKENS
-      value: "__OPENAI_MAX_TOKENS__"
 
     # Microsoft Teams
     - name: TEAMS_WEBHOOK_URL
