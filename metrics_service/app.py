@@ -104,6 +104,7 @@ class ChatRequest(BaseModel):
     service: str | None = None
     range: str | None = None
     source: str | None = None
+    history: list[dict] | None = None
 
 
 class ChatResponse(BaseModel):
@@ -120,10 +121,14 @@ class TeamsChatRequest(BaseModel):
 
     The 'message' field contains the raw user question in natural language.
     The optional 'user' field is the Teams display name of the sender,
-    used only for response formatting (never passed to Prometheus or Claude as input).
+    used only for response formatting (never passed to Prometheus or AI as input).
+    The optional 'history' field carries prior conversation turns so the AI can
+    resolve follow-up answers (e.g. user answers "prod" after being asked for namespace).
+    Each history entry: {"role": "user"|"assistant", "content": "..."}.
     """
     message: str
     user: str | None = None
+    history: list[dict] | None = None
 
 
 class TeamsChatResponse(BaseModel):
@@ -457,7 +462,7 @@ def chat(request: ChatRequest):
     if not question:
         raise HTTPException(status_code=400, detail="Question must not be empty.")
 
-    result = handle_chat_message(question, send_to_teams=False)
+    result = handle_chat_message(question, send_to_teams=False, history=request.history)
 
     if result.status == "error":
         raise HTTPException(status_code=400, detail=result.reply)
@@ -490,6 +495,7 @@ def teams_chat(request: TeamsChatRequest):
         user=request.user,
         send_to_teams=True,
         title="AKS Metrics Assistant",
+        history=request.history,
     )
 
     if result.status == "error":

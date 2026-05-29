@@ -84,6 +84,7 @@ def handle_chat_message(
     user: str | None = None,
     send_to_teams: bool = False,
     title: str = "AKS Metrics Assistant",
+    history: list[dict] | None = None,
 ) -> ChatControllerResult:
     """
     Single orchestration function for all chat entry points.
@@ -91,7 +92,7 @@ def handle_chat_message(
     Flow:
       1. Trim; return error for empty input (no API call).
       2. Remediation guard via regex; return refused (no API call).
-      3. Conversation Agent → branch on status.
+      3. Conversation Agent (with optional history) → branch on status.
       4. For ready: Tool Dispatcher → Explanation Agent.
       5. Optionally send reply to Teams Incoming Webhook (non-error statuses only).
 
@@ -102,12 +103,14 @@ def handle_chat_message(
     send_to_teams If True, sends the reply via Incoming Webhook for
                   answered/refused/needs_clarification/unsupported statuses.
     title         Card title for Teams messages.
+    history       Optional prior conversation turns for multi-turn context.
+                  Each dict: {"role": "user"|"assistant", "content": "..."}.
     """
     message = message.strip()
     if not message:
         return ChatControllerResult(status="error", reply="Message must not be empty.")
 
-    # --- Remediation guard (no Anthropic call) ---
+    # --- Remediation guard (no API call) ---
     if is_remediation_request(message):
         reply = (
             "Phase 1 is read-only. I cannot restart, scale, roll back, or modify "
@@ -122,7 +125,7 @@ def handle_chat_message(
 
     # --- Conversation Agent ---
     try:
-        decision = parse_user_message(message)
+        decision = parse_user_message(message, history=history)
     except RuntimeError as exc:
         return ChatControllerResult(
             status="error",
