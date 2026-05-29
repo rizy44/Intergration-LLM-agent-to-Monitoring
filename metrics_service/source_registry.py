@@ -23,7 +23,6 @@ Security rules:
 
 import json
 import logging
-import os
 from dataclasses import dataclass, field
 from functools import lru_cache
 
@@ -46,7 +45,12 @@ DEFAULT_SOURCE_TYPE_FOR_METRIC = {
     "unhealthy_pods":  "aks",
     "namespace_usage": "aks",
     "top_consumers":   "aks",
-    "service_errors":  "aks",
+    "service_errors":        "aks",
+    "k8s_namespace_overview": "azure",
+    "k8s_workloads":          "azure",
+    "k8s_workload_detail":    "azure",
+    "k8s_services":           "azure",
+    "k8s_service_detail":     "azure",
 }
 
 
@@ -151,8 +155,10 @@ class SourceRegistry:
 
 @lru_cache(maxsize=1)
 def get_registry():
-    """Load and cache the SourceRegistry from PROMETHEUS_SOURCES env var."""
-    raw = os.environ.get("PROMETHEUS_SOURCES", "").strip()
+    """Load and cache the SourceRegistry from PROMETHEUS_SOURCES setting."""
+    from .config import get_settings
+    settings = get_settings()
+    raw = settings.prometheus_sources.strip()
 
     if raw:
         try:
@@ -189,10 +195,14 @@ def get_registry():
             raise ValueError("PROMETHEUS_SOURCES is empty. At least one source is required.")
         return SourceRegistry(sources)
 
+    readable_sources = _load_readable_sources(settings)
+    if readable_sources:
+        return SourceRegistry(readable_sources)
+
     # Legacy fallback
-    legacy_url = os.environ.get("PROMETHEUS_URL", "http://prometheus:9090")
-    legacy_user = os.environ.get("PROMETHEUS_USERNAME", "")
-    legacy_pass = os.environ.get("PROMETHEUS_PASSWORD", "")
+    legacy_url = settings.prometheus_url
+    legacy_user = settings.prometheus_username
+    legacy_pass = settings.prometheus_password
     logger.warning("PROMETHEUS_SOURCES not set. Falling back to legacy single-source config.")
     auth_type = "basic" if (legacy_user and legacy_pass) else "none"
     fallback = PrometheusSource(
@@ -201,3 +211,38 @@ def get_registry():
         description="Legacy single-source fallback",
     )
     return SourceRegistry([fallback])
+
+
+def _load_readable_sources(settings):
+    """Build sources from individual env vars when PROMETHEUS_SOURCES is not set."""
+    sources = []
+
+    if settings.prometheus_aks_url:
+        sources.append(
+            PrometheusSource(
+                name=settings.prometheus_aks_name,
+                type="aks",
+                url=settings.prometheus_aks_url,
+                auth_type=settings.prometheus_aks_auth_type,
+                username=settings.prometheus_aks_username,
+                password=settings.prometheus_aks_password,
+                description=settings.prometheus_aks_description,
+            )
+        )
+
+    if settings.prometheus_azure_url:
+        sources.append(
+            PrometheusSource(
+                name=settings.prometheus_azure_name,
+                type="azure",
+                url=settings.prometheus_azure_url,
+                auth_type=settings.prometheus_azure_auth_type,
+                tenant_id=settings.prometheus_azure_tenant_id,
+                client_id=settings.prometheus_azure_client_id,
+                client_secret=settings.prometheus_azure_client_secret,
+                subscription_id=settings.prometheus_azure_subscription_id,
+                description=settings.prometheus_azure_description,
+            )
+        )
+
+    return sources

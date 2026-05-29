@@ -47,10 +47,10 @@ def get_token_for_source(source) -> str:
                 "Using per-source ClientSecretCredential. source=%s tenant=%s client=%s",
                 source.name, source.tenant_id, source.client_id,
             )
-            credential = ClientSecretCredential(
-                tenant_id=source.tenant_id,
-                client_id=source.client_id,
-                client_secret=source.client_secret,   # never logged
+            credential = _get_client_secret_credential(
+                source.tenant_id,
+                source.client_id,
+                source.client_secret,
             )
         else:
             logger.debug(
@@ -84,3 +84,14 @@ def _get_default_credential():
     """Cached DefaultAzureCredential instance (token refresh is handled internally)."""
     from azure.identity import DefaultAzureCredential
     return DefaultAzureCredential()
+
+
+@lru_cache(maxsize=32)
+def _get_client_secret_credential(tenant_id: str, client_id: str, client_secret: str):
+    """Cached ClientSecretCredential instance (token refresh is handled internally)."""
+    from azure.identity import ClientSecretCredential
+    return ClientSecretCredential(
+        tenant_id=tenant_id,
+        client_id=client_id,
+        client_secret=client_secret,
+    )

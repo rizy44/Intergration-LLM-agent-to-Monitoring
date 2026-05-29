@@ -18,9 +18,12 @@ to the underlying tool functions.
 import logging
 from typing import Any
 
-from .config import get_settings, validate_label, validate_range, validate_source_name
+from .config import get_settings, validate_cluster_name, validate_label, validate_range, validate_source_name, validate_workload_name
 from .source_registry import get_registry
 from .tools.cluster_health import get_cluster_health
+from .tools.k8s_namespace_overview import get_k8s_namespace_overview
+from .tools.k8s_services import get_k8s_service_detail, get_k8s_services
+from .tools.k8s_workloads import get_k8s_workload_detail, get_k8s_workloads
 from .tools.namespace_usage import (
     get_namespace_resource_usage,
     get_top_resource_consuming_pods,
@@ -47,6 +50,12 @@ ALLOWED_TOOL_DISPATCH: dict[str, Any] = {
     "get_namespace_resource_usage":   get_namespace_resource_usage,
     "get_service_error_rate":         get_service_error_rate,
     "get_top_resource_consuming_pods": get_top_resource_consuming_pods,
+    # K8s cluster-aware tools
+    "get_k8s_namespace_overview":     get_k8s_namespace_overview,
+    "get_k8s_workloads":              get_k8s_workloads,
+    "get_k8s_workload_detail":        get_k8s_workload_detail,
+    "get_k8s_services":               get_k8s_services,
+    "get_k8s_service_detail":         get_k8s_service_detail,
 }
 
 
@@ -80,11 +89,13 @@ def dispatch_tool(request: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     """
     settings = get_settings()
 
-    tool_name = request.get("tool", "")
-    namespace  = (request.get("namespace") or "").strip()
-    service    = (request.get("service") or "").strip()
-    range_str  = (request.get("range") or settings.prometheus_default_range).strip()
-    source     = (request.get("source") or None)
+    tool_name     = request.get("tool", "")
+    namespace     = (request.get("namespace") or "").strip()
+    service       = (request.get("service") or "").strip()
+    cluster       = (request.get("cluster") or "").strip()
+    workload_name = (request.get("workload_name") or "").strip()
+    range_str     = (request.get("range") or settings.prometheus_default_range).strip()
+    source        = (request.get("source") or None)
 
     # ---- Whitelist check ----
     if tool_name not in ALLOWED_TOOL_DISPATCH:
@@ -118,13 +129,25 @@ def dispatch_tool(request: dict[str, Any]) -> tuple[str, dict[str, Any]]:
         except (ValueError, KeyError) as exc:
             raise ToolDispatchError(str(exc)) from exc
 
+    if cluster:
+        try:
+            validate_cluster_name(cluster)
+        except ValueError as exc:
+            raise ToolDispatchError(str(exc)) from exc
+
+    if workload_name:
+        try:
+            validate_workload_name(workload_name)
+        except ValueError as exc:
+            raise ToolDispatchError(str(exc)) from exc
+
     logger.info(
-        "Dispatching tool=%s namespace=%s service=%s range=%s source=%s",
-        tool_name, namespace or "—", service or "—", range_str, source or "auto",
+        "Dispatching tool=%s cluster=%s namespace=%s service=%s range=%s source=%s",
+        tool_name, cluster or "—", namespace or "—", service or "—", range_str, source or "auto",
     )
 
     fn = ALLOWED_TOOL_DISPATCH[tool_name]
-    metric_data = _call_tool(fn, tool_name, namespace, service, range_str, source)
+    metric_data = _call_tool(fn, tool_name, namespace, service, cluster, workload_name, range_str, source)
     return tool_name, metric_data
 
 
@@ -138,6 +161,8 @@ def _call_tool(
     tool_name: str,
     namespace: str,
     service: str,
+    cluster: str,
+    workload_name: str,
     range_str: str,
     source: str | None,
 ) -> dict[str, Any]:
@@ -193,6 +218,45 @@ def _call_tool(
                 "Please specify which namespace to check."
             )
         return fn(namespace=namespace, range=range_str, source_override=source)
+
+    if tool_name == "get_k8s_namespace_overview":
+        if not cluster:
+            raise ToolDispatchError("get_k8s_namespace_overview requires a cluster.")
+        if not namespace:
+            raise ToolDispatchError("get_k8s_namespace_overview requires a namespace.")
+        return fn(cluster=cluster, namespace=namespace, range=range_str, source_override=source)
+
+    if tool_name == "get_k8s_workloads":
+        if not cluster:
+            raise ToolDispatchError("get_k8s_workloads requires a cluster.")
+        if not namespace:
+            raise ToolDispatchError("get_k8s_workloads requires a namespace.")
+        return fn(cluster=cluster, namespace=namespace, source_override=source)
+
+    if tool_name == "get_k8s_workload_detail":
+        if not cluster:
+            raise ToolDispatchError("get_k8s_workload_detail requires a cluster.")
+        if not namespace:
+            raise ToolDispatchError("get_k8s_workload_detail requires a namespace.")
+        if not workload_name:
+            raise ToolDispatchError("get_k8s_workload_detail requires a workload_name.")
+        return fn(cluster=cluster, namespace=namespace, workload_name=workload_name, range=range_str, source_override=source)
+
+    if tool_name == "get_k8s_services":
+        if not cluster:
+            raise ToolDispatchError("get_k8s_services requires a cluster.")
+        if not namespace:
+            raise ToolDispatchError("get_k8s_services requires a namespace.")
+        return fn(cluster=cluster, namespace=namespace, source_override=source)
+
+    if tool_name == "get_k8s_service_detail":
+        if not cluster:
+            raise ToolDispatchError("get_k8s_service_detail requires a cluster.")
+        if not namespace:
+            raise ToolDispatchError("get_k8s_service_detail requires a namespace.")
+        if not service:
+            raise ToolDispatchError("get_k8s_service_detail requires a service name.")
+        return fn(cluster=cluster, namespace=namespace, service_name=service, source_override=source)
 
     # Should never reach here — whitelist check above already guards this
     raise ToolDispatchError(f"No dispatch mapping for tool '{tool_name}'.")

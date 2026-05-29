@@ -39,3 +39,10 @@ Thumbs.db
 # Logs
 *.log
 logs/
+
+# Planning & generated documents
+*.xlsx
+*.xls
+
+# Helper/utility scripts (not part of the main application)
+scripts/

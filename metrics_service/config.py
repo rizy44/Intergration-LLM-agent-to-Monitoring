@@ -34,6 +34,14 @@ def validate_source_name(name):
     return validate_label(name, "source name")
 
 
+def validate_cluster_name(name):
+    return validate_label(name, "cluster")
+
+
+def validate_workload_name(name):
+    return validate_label(name, "workload")
+
+
 def validate_hostname(value: str) -> str:
     """Validate a hostname or comma-separated hostname list."""
     parts = [p.strip() for p in value.split(",") if p.strip()]
@@ -58,6 +66,23 @@ class Settings(BaseSettings):
 
     # Multi-source Prometheus (JSON array string, parsed by source_registry.py)
     prometheus_sources: str = ""
+
+    # Readable two-source Prometheus config. Used when PROMETHEUS_SOURCES is empty.
+    prometheus_aks_name: str = "Prometheus"
+    prometheus_aks_url: str = ""
+    prometheus_aks_auth_type: str = "basic"
+    prometheus_aks_username: str = ""
+    prometheus_aks_password: str = ""
+    prometheus_aks_description: str = "In-cluster Prometheus"
+
+    prometheus_azure_name: str = "uat-monitor-workspace-prometheus"
+    prometheus_azure_url: str = ""
+    prometheus_azure_auth_type: str = "azure_ad"
+    prometheus_azure_tenant_id: str = ""
+    prometheus_azure_client_id: str = ""
+    prometheus_azure_client_secret: str = ""
+    prometheus_azure_subscription_id: str = ""
+    prometheus_azure_description: str = "Azure Monitor Managed Prometheus"
 
     # Legacy single-source fallback
     prometheus_url: str = "http://192.168.100.230:9090"

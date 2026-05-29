@@ -30,7 +30,7 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from pydantic import BaseModel
 
 from .chat_controller import ChatControllerResult, handle_chat_message
-from .config import get_settings, validate_hostname, validate_label, validate_range, validate_source_name
+from .config import get_settings, validate_cluster_name, validate_hostname, validate_label, validate_range, validate_source_name, validate_workload_name
 from .daily_report import run_daily_report
 from .source_registry import get_registry
 from .teams_bot import (
@@ -47,6 +47,9 @@ from .tools.namespace_usage import (
 from .tools.node_cpu import get_node_cpu_usage
 from .tools.node_memory import get_node_memory_usage
 from .tools.pod_restarts import get_pod_restart_count
+from .tools.k8s_namespace_overview import get_k8s_namespace_overview
+from .tools.k8s_services import get_k8s_service_detail, get_k8s_services
+from .tools.k8s_workloads import get_k8s_workload_detail, get_k8s_workloads
 from .tools.service_errors import get_service_error_rate
 from .tools.unhealthy_pods import get_unhealthy_pods
 
@@ -59,6 +62,7 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
 logger = logging.getLogger(__name__)
+logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(logging.WARNING)
 
 # ---------------------------------------------------------------------------
 # FastAPI app
@@ -316,6 +320,121 @@ def service_errors(
             service=service, namespace=namespace, range=range, source_override=source
         )
     except (ValueError, KeyError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except RuntimeError as exc:
+        raise _runtime_to_http(exc)
+
+
+# ---------------------------------------------------------------------------
+# K8s cluster-aware metric endpoints
+# ---------------------------------------------------------------------------
+
+CLUSTER_QUERY = Query(description="AKS cluster name (e.g. wp-aks-uat)")
+NAMESPACE_QUERY = Query(description="Kubernetes namespace")
+
+
+@app.get("/metrics/k8s/namespace-overview", tags=["K8s Metrics"])
+def k8s_namespace_overview(
+    cluster: Annotated[str, CLUSTER_QUERY],
+    namespace: Annotated[str, NAMESPACE_QUERY],
+    range: Annotated[str, RANGE_QUERY] = "1h",
+    source: Annotated[str | None, SOURCE_QUERY] = None,
+):
+    """Namespace-level CPU and memory usage."""
+    try:
+        validate_cluster_name(cluster)
+        validate_label(namespace, "namespace")
+        validate_range(range, get_settings().allowed_ranges_set)
+        _validate_source(source)
+        return get_k8s_namespace_overview(cluster=cluster, namespace=namespace, range=range, source_override=source)
+    except (ValueError, KeyError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except RuntimeError as exc:
+        raise _runtime_to_http(exc)
+
+
+@app.get("/metrics/k8s/workloads", tags=["K8s Metrics"])
+def k8s_workloads(
+    cluster: Annotated[str, CLUSTER_QUERY],
+    namespace: Annotated[str, NAMESPACE_QUERY],
+    source: Annotated[str | None, SOURCE_QUERY] = None,
+):
+    """List all Deployments, StatefulSets, and DaemonSets in a namespace with replica status."""
+    try:
+        validate_cluster_name(cluster)
+        validate_label(namespace, "namespace")
+        _validate_source(source)
+        return get_k8s_workloads(cluster=cluster, namespace=namespace, source_override=source)
+    except (ValueError, KeyError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except RuntimeError as exc:
+        raise _runtime_to_http(exc)
+
+
+@app.get("/metrics/k8s/workloads/{workload_name}", tags=["K8s Metrics"])
+def k8s_workload_detail(
+    workload_name: str,
+    cluster: Annotated[str, CLUSTER_QUERY],
+    namespace: Annotated[str, NAMESPACE_QUERY],
+    range: Annotated[str, RANGE_QUERY] = "1h",
+    source: Annotated[str | None, SOURCE_QUERY] = None,
+):
+    """CPU/memory usage and per-pod breakdown for one named workload."""
+    try:
+        validate_cluster_name(cluster)
+        validate_label(namespace, "namespace")
+        validate_workload_name(workload_name)
+        validate_range(range, get_settings().allowed_ranges_set)
+        _validate_source(source)
+        return get_k8s_workload_detail(
+            cluster=cluster, namespace=namespace, workload_name=workload_name,
+            range=range, source_override=source,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except RuntimeError as exc:
+        raise _runtime_to_http(exc)
+
+
+@app.get("/metrics/k8s/services", tags=["K8s Metrics"])
+def k8s_services(
+    cluster: Annotated[str, CLUSTER_QUERY],
+    namespace: Annotated[str, NAMESPACE_QUERY],
+    source: Annotated[str | None, SOURCE_QUERY] = None,
+):
+    """List all Kubernetes Services in a namespace with endpoint health status."""
+    try:
+        validate_cluster_name(cluster)
+        validate_label(namespace, "namespace")
+        _validate_source(source)
+        return get_k8s_services(cluster=cluster, namespace=namespace, source_override=source)
+    except (ValueError, KeyError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except RuntimeError as exc:
+        raise _runtime_to_http(exc)
+
+
+@app.get("/metrics/k8s/services/{service_name}", tags=["K8s Metrics"])
+def k8s_service_detail(
+    service_name: str,
+    cluster: Annotated[str, CLUSTER_QUERY],
+    namespace: Annotated[str, NAMESPACE_QUERY],
+    source: Annotated[str | None, SOURCE_QUERY] = None,
+):
+    """Detail for one Kubernetes Service: type, cluster IP, and endpoint health."""
+    try:
+        validate_cluster_name(cluster)
+        validate_label(namespace, "namespace")
+        validate_label(service_name, "service")
+        _validate_source(source)
+        return get_k8s_service_detail(
+            cluster=cluster, namespace=namespace, service_name=service_name, source_override=source,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except RuntimeError as exc:
         raise _runtime_to_http(exc)
