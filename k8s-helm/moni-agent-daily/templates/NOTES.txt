@@ -1,0 +1,12 @@
+moni-agent-daily CronJob deployed successfully.
+
+Schedule: 0 2 * * * UTC (09:00 Vietnam time, ICT UTC+7)
+
+To check the last run:
+  kubectl get jobs --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "deploy-bot.name" . }}"
+
+To view logs from the last run:
+  kubectl logs --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "deploy-bot.name" . }}" --tail=100
+
+To trigger a manual run immediately:
+  kubectl create job --namespace {{ .Release.Namespace }} --from=cronjob/{{ include "deploy-bot.fullname" . }}-moni-agent-daily manual-run-$(date +%s)

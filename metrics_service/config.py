@@ -85,9 +85,9 @@ class Settings(BaseSettings):
     prometheus_azure_description: str = "Azure Monitor Managed Prometheus"
 
     # Legacy single-source fallback
-    prometheus_url: str = "http://192.168.100.230:9090"
-    prometheus_username: str = "admin"
-    prometheus_password: str = "admin1234"
+    prometheus_url: str = ""
+    prometheus_username: str = ""
+    prometheus_password: str = ""
 
     # Query behaviour
     prometheus_timeout_seconds: int = 10
