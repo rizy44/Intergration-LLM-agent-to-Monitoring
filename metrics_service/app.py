@@ -30,9 +30,9 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from pydantic import BaseModel
 
 from .chat_controller import ChatControllerResult, handle_chat_message
-from .config import get_settings, validate_cluster_name, validate_hostname, validate_label, validate_range, validate_source_name, validate_workload_name
+from .config import get_settings, validate_azure_name, validate_cluster_name, validate_hostname, validate_label, validate_range, validate_source_name, validate_workload_name
 from .daily_report import run_daily_report
-from .source_registry import get_registry
+from .source_registry import get_azure_registry, get_registry
 from .teams_bot import (
     build_teams_response,
     extract_message_text,
@@ -50,6 +50,10 @@ from .tools.pod_restarts import get_pod_restart_count
 from .tools.k8s_namespace_overview import get_k8s_namespace_overview
 from .tools.k8s_services import get_k8s_service_detail, get_k8s_services
 from .tools.k8s_workloads import get_k8s_workload_detail, get_k8s_workloads
+from .tools.app_service import get_app_service_performance
+from .tools.azure_resources import list_azure_resources
+from .tools.mysql import get_mysql_performance
+from .tools.postgres import get_postgres_performance
 from .tools.service_errors import get_service_error_rate
 from .tools.unhealthy_pods import get_unhealthy_pods
 
@@ -169,10 +173,16 @@ def health_check():
 @app.get("/sources", tags=["Sources"])
 def list_sources():
     """
-    List all configured Prometheus sources (credentials-free).
-    Use the 'name' field as the ?source= parameter in metric queries.
+    List all configured sources (Prometheus + Azure Monitor), credentials-free.
+    Prometheus sources: use the 'name' field as the ?source= parameter.
+    Azure Monitor sources: used by /azure/* endpoints.
     """
-    return {"sources": get_registry().safe_list()}
+    sources = get_registry().safe_list()
+    try:
+        sources = sources + get_azure_registry().safe_list()
+    except (ValueError, KeyError):
+        pass  # Azure Monitor not configured — omit silently
+    return {"sources": sources}
 
 
 # ---------------------------------------------------------------------------
@@ -588,6 +598,95 @@ def trigger_daily_report():
     except Exception:
         logger.exception("Unexpected error triggering daily report.")
         raise HTTPException(status_code=500, detail="Daily report failed. Check logs.")
+
+
+# ---------------------------------------------------------------------------
+# Azure Monitor endpoints
+# ---------------------------------------------------------------------------
+
+RG_QUERY = Query(description="Azure resource group name (e.g. my-resource-group)")
+AZURE_RANGE_QUERY = Query(description="Time range: 1h, 6h, 12h, 24h, 2d, 7d")
+
+
+@app.get("/azure/resources", tags=["Azure Monitor"])
+def azure_list_resources(
+    resource_group: Annotated[str, RG_QUERY],
+):
+    """
+    List all queryable Azure resources in a resource group.
+    Returns resources grouped by type: app_service, mysql, postgres, redis, service_bus.
+    Call this first to discover resource names before querying metrics.
+    """
+    try:
+        validate_azure_name(resource_group, "resource_group")
+        return list_azure_resources(resource_group=resource_group)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except RuntimeError as exc:
+        raise _runtime_to_http(exc)
+
+
+@app.get("/azure/app-service/{app_name}", tags=["Azure Monitor"])
+def azure_app_service(
+    app_name: str,
+    resource_group: Annotated[str, RG_QUERY],
+    range: Annotated[str, AZURE_RANGE_QUERY] = "24h",
+):
+    """
+    Performance metrics for an Azure App Service (Microsoft.Web/sites).
+    Returns CPU time, memory, requests, response time, HTTP status breakdown, error rate.
+    """
+    try:
+        validate_azure_name(resource_group, "resource_group")
+        validate_azure_name(app_name, "app_name")
+        validate_range(range, get_settings().allowed_ranges_set)
+        return get_app_service_performance(resource_group=resource_group, app_name=app_name, range=range)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except RuntimeError as exc:
+        raise _runtime_to_http(exc)
+
+
+@app.get("/azure/mysql/{server_name}", tags=["Azure Monitor"])
+def azure_mysql(
+    server_name: str,
+    resource_group: Annotated[str, RG_QUERY],
+    range: Annotated[str, AZURE_RANGE_QUERY] = "24h",
+):
+    """
+    Performance metrics for an Azure MySQL Flexible Server.
+    Returns CPU, memory, IO, connections, queries, storage usage.
+    """
+    try:
+        validate_azure_name(resource_group, "resource_group")
+        validate_azure_name(server_name, "server_name")
+        validate_range(range, get_settings().allowed_ranges_set)
+        return get_mysql_performance(resource_group=resource_group, server_name=server_name, range=range)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except RuntimeError as exc:
+        raise _runtime_to_http(exc)
+
+
+@app.get("/azure/postgres/{server_name}", tags=["Azure Monitor"])
+def azure_postgres(
+    server_name: str,
+    resource_group: Annotated[str, RG_QUERY],
+    range: Annotated[str, AZURE_RANGE_QUERY] = "24h",
+):
+    """
+    Performance metrics for an Azure PostgreSQL Flexible Server.
+    Returns CPU, memory, storage, backup storage, connections, IOPS, disk bandwidth.
+    """
+    try:
+        validate_azure_name(resource_group, "resource_group")
+        validate_azure_name(server_name, "server_name")
+        validate_range(range, get_settings().allowed_ranges_set)
+        return get_postgres_performance(resource_group=resource_group, server_name=server_name, range=range)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except RuntimeError as exc:
+        raise _runtime_to_http(exc)
 
 
 # ---------------------------------------------------------------------------
