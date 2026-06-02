@@ -31,26 +31,26 @@ logger = logging.getLogger(__name__)
 AUTH_TYPES = {"none", "basic", "azure_ad"}
 
 SOURCE_TYPE_LABELS = {
-    "aks":      "AKS In-Cluster",
-    "azure":    "Azure Monitor / Managed Prometheus",
+    "node":     "AKS In-Cluster",
+    "aks":      "Azure Monitor / Managed Prometheus",
     "vm-cloud": "Azure Cloud VM",
     "vm-local": "On-Premise VM",
 }
 
 DEFAULT_SOURCE_TYPE_FOR_METRIC = {
-    "cluster_health":  "aks",
-    "node_cpu":        "aks",
-    "node_memory":     "aks",
-    "pod_restarts":    "aks",
-    "unhealthy_pods":  "aks",
-    "namespace_usage": "aks",
-    "top_consumers":   "aks",
-    "service_errors":        "aks",
-    "k8s_namespace_overview": "azure",
-    "k8s_workloads":          "azure",
-    "k8s_workload_detail":    "azure",
-    "k8s_services":           "azure",
-    "k8s_service_detail":     "azure",
+    "cluster_health":  "node",
+    "node_cpu":        "node",
+    "node_memory":     "node",
+    "pod_restarts":    "node",
+    "unhealthy_pods":  "node",
+    "namespace_usage": "node",
+    "top_consumers":   "node",
+    "service_errors":        "node",
+    "k8s_namespace_overview": "aks",
+    "k8s_workloads":          "aks",
+    "k8s_workload_detail":    "aks",
+    "k8s_services":           "aks",
+    "k8s_service_detail":     "aks",
 }
 
 
@@ -217,6 +217,19 @@ def _load_readable_sources(settings):
     """Build sources from individual env vars when PROMETHEUS_SOURCES is not set."""
     sources = []
 
+    if settings.prometheus_node_url:
+        sources.append(
+            PrometheusSource(
+                name=settings.prometheus_node_name,
+                type="node",
+                url=settings.prometheus_node_url,
+                auth_type=settings.prometheus_node_auth_type,
+                username=settings.prometheus_node_username,
+                password=settings.prometheus_node_password,
+                description=settings.prometheus_node_description,
+            )
+        )
+
     if settings.prometheus_aks_url:
         sources.append(
             PrometheusSource(
@@ -224,24 +237,11 @@ def _load_readable_sources(settings):
                 type="aks",
                 url=settings.prometheus_aks_url,
                 auth_type=settings.prometheus_aks_auth_type,
-                username=settings.prometheus_aks_username,
-                password=settings.prometheus_aks_password,
+                tenant_id=settings.prometheus_aks_tenant_id,
+                client_id=settings.prometheus_aks_client_id,
+                client_secret=settings.prometheus_aks_client_secret,
+                subscription_id=settings.prometheus_aks_subscription_id,
                 description=settings.prometheus_aks_description,
-            )
-        )
-
-    if settings.prometheus_azure_url:
-        sources.append(
-            PrometheusSource(
-                name=settings.prometheus_azure_name,
-                type="azure",
-                url=settings.prometheus_azure_url,
-                auth_type=settings.prometheus_azure_auth_type,
-                tenant_id=settings.prometheus_azure_tenant_id,
-                client_id=settings.prometheus_azure_client_id,
-                client_secret=settings.prometheus_azure_client_secret,
-                subscription_id=settings.prometheus_azure_subscription_id,
-                description=settings.prometheus_azure_description,
             )
         )
 

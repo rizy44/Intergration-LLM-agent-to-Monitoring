@@ -55,24 +55,24 @@ moni-agent:
 
   env:
     # In-cluster Prometheus — credentials and URL vary per environment
-    - name: PROMETHEUS_AKS_URL
-      value: "__PROMETHEUS_AKS_URL__"
-    - name: PROMETHEUS_AKS_USERNAME
-      value: "__PROMETHEUS_AKS_USERNAME__"
-    - name: PROMETHEUS_AKS_PASSWORD
-      value: "__PROMETHEUS_AKS_PASSWORD__"
+    - name: PROMETHEUS_NODE_URL
+      value: "__PROMETHEUS_NODE_URL__"
+    - name: PROMETHEUS_NODE_USERNAME
+      value: "__PROMETHEUS_NODE_USERNAME__"
+    - name: PROMETHEUS_NODE_PASSWORD
+      value: "__PROMETHEUS_NODE_PASSWORD__"
 
     # Azure Monitor Managed Prometheus — Azure AD secrets
-    - name: PROMETHEUS_AZURE_URL
-      value: "__PROMETHEUS_AZURE_URL__"
-    - name: PROMETHEUS_AZURE_TENANT_ID
-      value: "__PROMETHEUS_AZURE_TENANT_ID__"
-    - name: PROMETHEUS_AZURE_CLIENT_ID
-      value: "__PROMETHEUS_AZURE_CLIENT_ID__"
-    - name: PROMETHEUS_AZURE_CLIENT_SECRET
-      value: "__PROMETHEUS_AZURE_CLIENT_SECRET__"
-    - name: PROMETHEUS_AZURE_SUBSCRIPTION_ID
-      value: "__PROMETHEUS_AZURE_SUBSCRIPTION_ID__"
+    - name: PROMETHEUS_AKS_URL
+      value: "__PROMETHEUS_AKS_URL__"
+    - name: PROMETHEUS_AKS_TENANT_ID
+      value: "__PROMETHEUS_AKS_TENANT_ID__"
+    - name: PROMETHEUS_AKS_CLIENT_ID
+      value: "__PROMETHEUS_AKS_CLIENT_ID__"
+    - name: PROMETHEUS_AKS_CLIENT_SECRET
+      value: "__PROMETHEUS_AKS_CLIENT_SECRET__"
+    - name: PROMETHEUS_AKS_SUBSCRIPTION_ID
+      value: "__PROMETHEUS_AKS_SUBSCRIPTION_ID__"
 
     # Daily report scope — varies per environment
     - name: DAILY_REPORT_SOURCES
