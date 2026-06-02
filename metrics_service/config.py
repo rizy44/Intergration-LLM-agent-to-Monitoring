@@ -13,6 +13,8 @@ _ENV_FILE = Path(__file__).parent.parent / ".env"
 ALLOWED_RANGES_DEFAULT = {"1h", "6h", "12h", "24h", "2d", "7d"}
 _SAFE_LABEL = re.compile(r"^[a-z0-9][a-z0-9\-\.]{0,62}$")
 _SAFE_HOSTNAME = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9\-\_\.]{0,62}$")
+# Azure resource/RG names: 1-90 chars, alphanumeric + hyphens + underscores + dots + parens
+_SAFE_AZURE_NAME = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9\-\_\.\(\)]{0,88}$")
 
 
 def validate_range(value, allowed=None):
@@ -40,6 +42,19 @@ def validate_cluster_name(name):
 
 def validate_workload_name(name):
     return validate_label(name, "workload")
+
+
+def validate_azure_name(value: str, field: str = "resource name") -> str:
+    """Validate an Azure resource name or resource group name."""
+    if not value or not value.strip():
+        raise ValueError(f"Invalid {field}: must not be empty.")
+    if not _SAFE_AZURE_NAME.match(value.strip()):
+        raise ValueError(
+            f"Invalid {field} '{value}'. "
+            "Use alphanumeric characters, hyphens, underscores, dots, or parentheses. "
+            "Max 90 characters."
+        )
+    return value.strip()
 
 
 def validate_hostname(value: str) -> str:
@@ -107,6 +122,14 @@ class Settings(BaseSettings):
     # Required for POST /teams/webhook to validate inbound HMAC signatures.
     # Leave empty to disable the Outgoing Webhook endpoint.
     teams_outgoing_webhook_secret: str = ""
+
+    # Azure Monitor REST API (management.azure.com) — separate from Prometheus sources
+    azure_resource_name: str = "uat-monitor-workspace"
+    azure_resource_tenant_id: str = ""
+    azure_resource_client_id: str = ""
+    azure_resource_client_secret: str = ""
+    azure_resource_subscription_id: str = ""
+    azure_resource_description: str = "Azure Monitor Workspace"
 
     # Daily report scoping
     daily_report_sources: str = ""

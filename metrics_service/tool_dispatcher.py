@@ -18,12 +18,15 @@ to the underlying tool functions.
 import logging
 from typing import Any
 
-from .config import get_settings, validate_cluster_name, validate_label, validate_range, validate_source_name, validate_workload_name
+from .config import get_settings, validate_azure_name, validate_cluster_name, validate_label, validate_range, validate_source_name, validate_workload_name
 from .source_registry import get_registry
+from .tools.app_service import get_app_service_performance
+from .tools.azure_resources import list_azure_resources
 from .tools.cluster_health import get_cluster_health
 from .tools.k8s_namespace_overview import get_k8s_namespace_overview
 from .tools.k8s_services import get_k8s_service_detail, get_k8s_services
 from .tools.k8s_workloads import get_k8s_workload_detail, get_k8s_workloads
+from .tools.mysql import get_mysql_performance
 from .tools.namespace_usage import (
     get_namespace_resource_usage,
     get_top_resource_consuming_pods,
@@ -31,6 +34,7 @@ from .tools.namespace_usage import (
 from .tools.node_cpu import get_node_cpu_usage
 from .tools.node_memory import get_node_memory_usage
 from .tools.pod_restarts import get_pod_restart_count
+from .tools.postgres import get_postgres_performance
 from .tools.service_errors import get_service_error_rate
 from .tools.unhealthy_pods import get_unhealthy_pods
 
@@ -56,6 +60,11 @@ ALLOWED_TOOL_DISPATCH: dict[str, Any] = {
     "get_k8s_workload_detail":        get_k8s_workload_detail,
     "get_k8s_services":               get_k8s_services,
     "get_k8s_service_detail":         get_k8s_service_detail,
+    # Azure Monitor tools
+    "list_azure_resources":           list_azure_resources,
+    "get_app_service_performance":    get_app_service_performance,
+    "get_mysql_performance":          get_mysql_performance,
+    "get_postgres_performance":       get_postgres_performance,
 }
 
 
@@ -89,14 +98,18 @@ def dispatch_tool(request: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     """
     settings = get_settings()
 
-    tool_name     = request.get("tool", "")
-    namespace     = (request.get("namespace") or "").strip()
-    service       = (request.get("service") or "").strip()
-    cluster       = (request.get("cluster") or "").strip()
-    workload_name = (request.get("workload_name") or "").strip()
-    hostname      = (request.get("hostname") or "").strip() or None
-    range_str     = (request.get("range") or settings.prometheus_default_range).strip()
-    source        = (request.get("source") or None)
+    tool_name      = request.get("tool", "")
+    namespace      = (request.get("namespace") or "").strip()
+    service        = (request.get("service") or "").strip()
+    cluster        = (request.get("cluster") or "").strip()
+    workload_name  = (request.get("workload_name") or "").strip()
+    hostname       = (request.get("hostname") or "").strip() or None
+    range_str      = (request.get("range") or settings.prometheus_default_range).strip()
+    source         = (request.get("source") or None)
+    # Azure Monitor params
+    resource_group = (request.get("resource_group") or "").strip()
+    app_name       = (request.get("app_name") or "").strip()
+    server_name    = (request.get("server_name") or "").strip()
 
     # ---- Whitelist check ----
     if tool_name not in ALLOWED_TOOL_DISPATCH:
@@ -148,7 +161,10 @@ def dispatch_tool(request: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     )
 
     fn = ALLOWED_TOOL_DISPATCH[tool_name]
-    metric_data = _call_tool(fn, tool_name, namespace, service, cluster, workload_name, hostname, range_str, source)
+    metric_data = _call_tool(
+        fn, tool_name, namespace, service, cluster, workload_name,
+        hostname, range_str, source, resource_group, app_name, server_name,
+    )
     return tool_name, metric_data
 
 
@@ -167,6 +183,9 @@ def _call_tool(
     hostname: str | None,
     range_str: str,
     source: str | None,
+    resource_group: str = "",
+    app_name: str = "",
+    server_name: str = "",
 ) -> dict[str, Any]:
     """Map tool name to the correct keyword arguments and call the function."""
 
@@ -259,6 +278,36 @@ def _call_tool(
         if not service:
             raise ToolDispatchError("get_k8s_service_detail requires a service name.")
         return fn(cluster=cluster, namespace=namespace, service_name=service, source_override=source)
+
+    if tool_name == "list_azure_resources":
+        if not resource_group:
+            raise ToolDispatchError("list_azure_resources requires a resource_group.")
+        try:
+            validate_azure_name(resource_group, "resource_group")
+        except ValueError as exc:
+            raise ToolDispatchError(str(exc)) from exc
+        return fn(resource_group=resource_group, source_override=source)
+
+    if tool_name == "get_app_service_performance":
+        if not resource_group:
+            raise ToolDispatchError("get_app_service_performance requires a resource_group.")
+        if not app_name:
+            raise ToolDispatchError("get_app_service_performance requires an app_name.")
+        return fn(resource_group=resource_group, app_name=app_name, range=range_str, source_override=source)
+
+    if tool_name == "get_mysql_performance":
+        if not resource_group:
+            raise ToolDispatchError("get_mysql_performance requires a resource_group.")
+        if not server_name:
+            raise ToolDispatchError("get_mysql_performance requires a server_name.")
+        return fn(resource_group=resource_group, server_name=server_name, range=range_str, source_override=source)
+
+    if tool_name == "get_postgres_performance":
+        if not resource_group:
+            raise ToolDispatchError("get_postgres_performance requires a resource_group.")
+        if not server_name:
+            raise ToolDispatchError("get_postgres_performance requires a server_name.")
+        return fn(resource_group=resource_group, server_name=server_name, range=range_str, source_override=source)
 
     # Should never reach here — whitelist check above already guards this
     raise ToolDispatchError(f"No dispatch mapping for tool '{tool_name}'.")
