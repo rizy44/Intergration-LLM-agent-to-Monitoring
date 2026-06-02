@@ -1,11 +1,11 @@
 """
-tools/unhealthy_pods.py - get_unhealthy_pods(namespace, source_override)
+datasources/prometheus/tools/unhealthy_pods.py - get_unhealthy_pods(namespace, source_override)
 """
 
 import logging
-from ..config import validate_label
-from ..prometheus_client import query_instant
-from ..source_registry import get_registry
+from ....config import validate_label
+from ..client import query_instant
+from ..registry import get_registry
 
 logger = logging.getLogger(__name__)
 METRIC_NAME = "unhealthy_pods"

@@ -1,5 +1,5 @@
 """
-prometheus_client.py - HTTP client for the Prometheus Query API.
+datasources/prometheus/client.py - HTTP client for the Prometheus Query API.
 The ONLY place that communicates with Prometheus.
 
 Auth routing per source.auth_type:
@@ -13,8 +13,8 @@ import time
 
 import httpx
 
-from .config import get_settings
-from .source_registry import PrometheusSource
+from ...config import get_settings
+from .registry import PrometheusSource
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ def _get_request_kwargs(source):
     if source.auth_type == "basic":
         return {"auth": httpx.BasicAuth(source.username, source.password)}
     if source.auth_type == "azure_ad":
-        from .auth_helper import get_token_for_source
+        from ...auth_helper import get_token_for_source
         token = get_token_for_source(source)
         return {"headers": {"Authorization": f"Bearer {token}"}}
     # auth_type == "none"

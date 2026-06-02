@@ -1,5 +1,5 @@
 """
-tools/k8s_workloads.py - Workload list and detail for a Kubernetes namespace.
+datasources/prometheus/tools/k8s_workloads.py - Workload list and detail for a Kubernetes namespace.
 
 get_k8s_workloads(cluster, namespace, source_override)
   - Returns all Deployments, StatefulSets, DaemonSets with replica status.
@@ -12,9 +12,9 @@ get_k8s_workload_detail(cluster, namespace, workload_name, range, source_overrid
 
 import logging
 
-from ..config import get_settings, validate_cluster_name, validate_label, validate_range, validate_workload_name
-from ..prometheus_client import query_instant
-from ..source_registry import get_registry
+from ....config import get_settings, validate_cluster_name, validate_label, validate_range, validate_workload_name
+from ..client import query_instant
+from ..registry import get_registry
 
 logger = logging.getLogger(__name__)
 

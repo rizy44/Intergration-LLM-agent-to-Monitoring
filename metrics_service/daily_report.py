@@ -16,15 +16,18 @@ from typing import Any
 
 from .ai_agent import generate_daily_report_text
 from .teams_sender import send_daily_report, send_error_to_teams
-from .tools.cluster_health import get_cluster_health
-from .tools.namespace_usage import get_namespace_resource_usage, get_top_resource_consuming_pods
-from .tools.node_cpu import get_node_cpu_usage
-from .tools.node_memory import get_node_memory_usage
-from .tools.pod_restarts import get_pod_restart_count
-from .tools.service_errors import get_service_error_rate
-from .tools.unhealthy_pods import get_unhealthy_pods
+from .datasources.prometheus.tools import (
+    get_cluster_health,
+    get_namespace_resource_usage,
+    get_top_resource_consuming_pods,
+    get_node_cpu_usage,
+    get_node_memory_usage,
+    get_pod_restart_count,
+    get_service_error_rate,
+    get_unhealthy_pods,
+)
 from .config import get_settings
-from .source_registry import get_registry
+from .datasources import get_registry
 
 logger = logging.getLogger(__name__)
 

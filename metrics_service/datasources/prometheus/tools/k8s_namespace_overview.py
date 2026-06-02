@@ -1,5 +1,5 @@
 """
-tools/k8s_namespace_overview.py - get_k8s_namespace_overview(cluster, namespace, range, source_override)
+datasources/prometheus/tools/k8s_namespace_overview.py - get_k8s_namespace_overview(cluster, namespace, range, source_override)
 
 Returns namespace-level CPU/memory usage.
 All PromQL includes cluster= filter for correct results against Azure Managed Prometheus.
@@ -7,9 +7,9 @@ All PromQL includes cluster= filter for correct results against Azure Managed Pr
 
 import logging
 
-from ..config import get_settings, validate_cluster_name, validate_label, validate_range
-from ..prometheus_client import query_instant
-from ..source_registry import get_registry
+from ....config import get_settings, validate_cluster_name, validate_label, validate_range
+from ..client import query_instant
+from ..registry import get_registry
 
 logger = logging.getLogger(__name__)
 

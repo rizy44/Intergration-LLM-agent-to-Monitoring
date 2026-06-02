@@ -1,11 +1,11 @@
 """
-tools/pod_restarts.py - get_pod_restart_count(namespace, range, source_override)
+datasources/prometheus/tools/pod_restarts.py - get_pod_restart_count(namespace, range, source_override)
 """
 
 import logging
-from ..config import get_settings, validate_label, validate_range
-from ..prometheus_client import query_instant
-from ..source_registry import get_registry
+from ....config import get_settings, validate_label, validate_range
+from ..client import query_instant
+from ..registry import get_registry
 
 logger = logging.getLogger(__name__)
 METRIC_NAME = "pod_restarts"

@@ -1,5 +1,5 @@
 """
-azure_monitor_client.py - HTTP client for the Azure Monitor REST API.
+datasources/azure_monitor/client.py - HTTP client for the Azure Monitor REST API.
 
 Two operations:
   list_resources(resource_group, source)
@@ -20,9 +20,9 @@ import time
 
 import httpx
 
-from .auth_helper import get_azure_management_token
-from .config import get_settings
-from .source_registry import AzureMonitorSource
+from ...auth_helper import get_azure_management_token
+from ...config import get_settings
+from .registry import AzureMonitorSource
 
 logger = logging.getLogger(__name__)
 

@@ -1,5 +1,5 @@
 """
-tools/cluster_health.py -- get_cluster_health()
+datasources/prometheus/tools/cluster_health.py -- get_cluster_health()
 
 Returns an overall AKS cluster health summary.
 Always queries the 'aks' source type.
@@ -8,8 +8,8 @@ Always queries the 'aks' source type.
 import logging
 from typing import Any
 
-from ..prometheus_client import query_instant
-from ..source_registry import get_registry
+from ..client import query_instant
+from ..registry import get_registry
 
 logger = logging.getLogger(__name__)
 

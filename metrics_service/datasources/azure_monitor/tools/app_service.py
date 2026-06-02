@@ -1,14 +1,14 @@
 """
-tools/app_service.py - get_app_service_performance(resource_group, app_name, range, source_override)
+datasources/azure_monitor/tools/app_service.py - get_app_service_performance(resource_group, app_name, range, source_override)
 
 Queries Azure Monitor metrics for a Microsoft.Web/sites (App Service) resource.
 """
 
 import logging
 
-from ..azure_monitor_client import extract_metric_value, query_metrics
-from ..config import get_settings, validate_azure_name, validate_range
-from ..source_registry import get_azure_registry
+from ..client import extract_metric_value, query_metrics
+from ....config import get_settings, validate_azure_name, validate_range
+from ..registry import get_azure_registry
 
 logger = logging.getLogger(__name__)
 

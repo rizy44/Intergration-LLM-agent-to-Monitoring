@@ -1,5 +1,5 @@
 """
-tools/node_memory.py - get_node_memory_usage(range, hostname, source_override)
+datasources/prometheus/tools/node_cpu.py - get_node_cpu_usage(range, hostname, source_override)
 
 Queries both Linux (node_exporter, job=linux-exporters) and Windows
 (windows_exporter, job=windows-exporters) nodes. Optionally filters by
@@ -7,15 +7,15 @@ hostname (single) or comma-separated hostname list (converted to PromQL regex).
 """
 
 import logging
-from ..config import get_settings, validate_range
-from ..prometheus_client import query_range
-from ..source_registry import get_registry
+from ....config import get_settings, validate_range
+from ..client import query_range
+from ..registry import get_registry
 
 logger = logging.getLogger(__name__)
-METRIC_NAME = "node_memory"
+METRIC_NAME = "node_cpu"
 
 
-def get_node_memory_usage(range="24h", hostname=None, source_override=None):
+def get_node_cpu_usage(range="24h", hostname=None, source_override=None):
     settings = get_settings()
     range = validate_range(range, settings.allowed_ranges_set)
     source = get_registry().get_for_metric(METRIC_NAME, source_override)
@@ -23,38 +23,30 @@ def get_node_memory_usage(range="24h", hostname=None, source_override=None):
     hf = _hostname_filter(hostname)
 
     linux_promql = (
-        f"avg by (instance, hostname, os, job) "
-        f"(100 * (1 - node_memory_MemAvailable_bytes{{job='linux-exporters'{hf}}}"
-        f" / node_memory_MemTotal_bytes{{job='linux-exporters'{hf}}}))"
+        f'100 * (1 - avg by (instance, hostname, os, job) '
+        f'(rate(node_cpu_seconds_total{{mode="idle",job="linux-exporters"{hf}}}[{range}])))'
     )
     windows_promql = (
-        f"avg by (instance, hostname, os, job) "
-        f"((1 - (windows_os_physical_memory_free_bytes{{job='windows-exporters'{hf}}}"
-        f" / windows_cs_physical_memory_bytes{{job='windows-exporters'{hf}}})) * 100)"
+        f'100 * (1 - avg by (instance, hostname, os, job) '
+        f'(rate(windows_cpu_time_total{{mode="idle",job="windows-exporters"{hf}}}[{range}])))'
     )
 
     nodes = []
 
     try:
         linux_results = query_range(linux_promql, source, range_str=range, step="5m")
-        nodes.extend(_parse_memory_results(linux_results))
+        nodes.extend(_parse_cpu_results(linux_results))
     except RuntimeError as exc:
-        logger.warning("get_node_memory_usage Linux query failed: %s", exc)
+        logger.warning("get_node_cpu_usage Linux query failed: %s", exc)
         raise
 
     try:
         win_results = query_range(windows_promql, source, range_str=range, step="5m")
-        win_nodes = _parse_memory_results(win_results)
-        if not win_nodes and not hostname:
-            logger.warning(
-                "get_node_memory_usage: Windows memory query returned no data. "
-                "windows_cs_physical_memory_bytes may not be available."
-            )
-        nodes.extend(win_nodes)
+        nodes.extend(_parse_cpu_results(win_results))
     except RuntimeError as exc:
-        logger.warning("get_node_memory_usage Windows query failed (non-fatal): %s", exc)
+        logger.warning("get_node_cpu_usage Windows query failed (non-fatal): %s", exc)
 
-    nodes.sort(key=lambda n: n["average_memory_percent"], reverse=True)
+    nodes.sort(key=lambda n: n["average_cpu_percent"], reverse=True)
     return {
         "range": range,
         "hostname_filter": hostname,
@@ -74,7 +66,7 @@ def _hostname_filter(hostname: str | None) -> str:
     return f',hostname=~"{pattern}"'
 
 
-def _parse_memory_results(results):
+def _parse_cpu_results(results):
     nodes = []
     for result in results:
         metric = result.get("metric", {})
@@ -92,7 +84,7 @@ def _parse_memory_results(results):
             "instance": instance,
             "os": os_type,
             "job": job,
-            "average_memory_percent": round(sum(values) / len(values), 1),
-            "max_memory_percent": round(max(values), 1),
+            "average_cpu_percent": round(sum(values) / len(values), 1),
+            "max_cpu_percent": round(max(values), 1),
         })
     return nodes

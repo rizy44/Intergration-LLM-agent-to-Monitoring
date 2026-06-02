@@ -1,5 +1,5 @@
 """
-tools/azure_resources.py - list_azure_resources(resource_group, source_override)
+datasources/azure_monitor/tools/azure_resources.py - list_azure_resources(resource_group, source_override)
 
 Lists all Azure resources in a resource group and groups them by supported type.
 Use this tool first to discover what resources are queryable before calling
@@ -8,9 +8,9 @@ metric tools (get_app_service_performance, get_mysql_performance, etc.).
 
 import logging
 
-from ..azure_monitor_client import list_resources
-from ..config import validate_azure_name
-from ..source_registry import get_azure_registry
+from ..client import list_resources
+from ....config import validate_azure_name
+from ..registry import get_azure_registry
 
 logger = logging.getLogger(__name__)
 

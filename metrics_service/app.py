@@ -32,30 +32,34 @@ from pydantic import BaseModel
 from .chat_controller import ChatControllerResult, handle_chat_message
 from .config import get_settings, validate_azure_name, validate_cluster_name, validate_hostname, validate_label, validate_range, validate_source_name, validate_workload_name
 from .daily_report import run_daily_report
-from .source_registry import get_azure_registry, get_registry
+from .datasources import get_azure_registry, get_registry
 from .teams_bot import (
     build_teams_response,
     extract_message_text,
     extract_sender_name,
     validate_teams_signature,
 )
-from .tools.cluster_health import get_cluster_health
-from .tools.namespace_usage import (
+from .datasources.prometheus.tools import (
+    get_cluster_health,
     get_namespace_resource_usage,
     get_top_resource_consuming_pods,
+    get_node_cpu_usage,
+    get_node_memory_usage,
+    get_pod_restart_count,
+    get_k8s_namespace_overview,
+    get_k8s_service_detail,
+    get_k8s_services,
+    get_k8s_workload_detail,
+    get_k8s_workloads,
+    get_service_error_rate,
+    get_unhealthy_pods,
 )
-from .tools.node_cpu import get_node_cpu_usage
-from .tools.node_memory import get_node_memory_usage
-from .tools.pod_restarts import get_pod_restart_count
-from .tools.k8s_namespace_overview import get_k8s_namespace_overview
-from .tools.k8s_services import get_k8s_service_detail, get_k8s_services
-from .tools.k8s_workloads import get_k8s_workload_detail, get_k8s_workloads
-from .tools.app_service import get_app_service_performance
-from .tools.azure_resources import list_azure_resources
-from .tools.mysql import get_mysql_performance
-from .tools.postgres import get_postgres_performance
-from .tools.service_errors import get_service_error_rate
-from .tools.unhealthy_pods import get_unhealthy_pods
+from .datasources.azure_monitor.tools import (
+    get_app_service_performance,
+    list_azure_resources,
+    get_mysql_performance,
+    get_postgres_performance,
+)
 
 # ---------------------------------------------------------------------------
 # Logging

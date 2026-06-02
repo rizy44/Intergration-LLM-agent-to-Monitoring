@@ -1,50 +1,48 @@
 """
-tools/postgres.py - get_postgres_performance(resource_group, server_name, range, source_override)
+datasources/azure_monitor/tools/mysql.py - get_mysql_performance(resource_group, server_name, range, source_override)
 
-Queries Azure Monitor metrics for a Microsoft.DBforPostgreSQL/flexibleServers resource.
-Supports PostgreSQL Flexible Server only (not classic single-server).
+Queries Azure Monitor metrics for a Microsoft.DBforMySQL/flexibleServers resource.
+Supports MySQL Flexible Server only (not classic single-server).
 """
 
 import logging
 
-from ..azure_monitor_client import extract_metric_value, query_metrics
-from ..config import get_settings, validate_azure_name, validate_range
-from ..source_registry import get_azure_registry
+from ..client import extract_metric_value, query_metrics
+from ....config import get_settings, validate_azure_name, validate_range
+from ..registry import get_azure_registry
 
 logger = logging.getLogger(__name__)
 
-_RESOURCE_TYPE = "Microsoft.DBforPostgreSQL/flexibleServers"
+_RESOURCE_TYPE = "Microsoft.DBforMySQL/flexibleServers"
 
 _METRIC_NAMES = [
     "cpu_percent",
     "memory_percent",
-    "storage_percent",
-    "backup_storage_used",
+    "io_consumption_percent",
     "active_connections",
-    "iops",
-    "read_iops",
-    "write_iops",
-    "disk_bandwidth_consumed_percentage",
+    "queries",
+    "storage_percent",
+    "storage_used",
     "network_bytes_egress",
     "network_bytes_ingress",
 ]
 
 
-def get_postgres_performance(
+def get_mysql_performance(
     resource_group: str,
     server_name: str,
     range: str = "24h",
     source_override: str | None = None,
 ) -> dict:
     """
-    Return performance metrics for an Azure PostgreSQL Flexible Server.
+    Return performance metrics for an Azure MySQL Flexible Server.
 
     Parameters
     ----------
     resource_group : str
-        Azure resource group containing the PostgreSQL server.
+        Azure resource group containing the MySQL server.
     server_name : str
-        Name of the PostgreSQL Flexible Server.
+        Name of the MySQL Flexible Server.
     range : str
         Time range: "1h", "6h", "12h", "24h", "2d", "7d".
     source_override : str | None
@@ -54,11 +52,9 @@ def get_postgres_performance(
     -------
     dict with fields:
         server_name, resource_group, range, source,
-        cpu_percent_avg, memory_percent_avg,
-        storage_percent, backup_storage_used_bytes,
-        active_connections_avg,
-        iops_avg, read_iops_avg, write_iops_avg,
-        disk_bandwidth_percent_avg,
+        cpu_percent_avg, memory_percent_avg, io_percent_avg,
+        active_connections_avg, queries_total,
+        storage_percent, storage_used_bytes,
         network_bytes_egress, network_bytes_ingress
     """
     settings = get_settings()
@@ -86,13 +82,11 @@ def get_postgres_performance(
         "source": source.safe_info(),
         "cpu_percent_avg": _avg(raw, "cpu_percent"),
         "memory_percent_avg": _avg(raw, "memory_percent"),
-        "storage_percent": _avg(raw, "storage_percent"),
-        "backup_storage_used_bytes": _avg_round(raw, "backup_storage_used"),
+        "io_percent_avg": _avg(raw, "io_consumption_percent"),
         "active_connections_avg": _avg(raw, "active_connections"),
-        "iops_avg": _avg(raw, "iops"),
-        "read_iops_avg": _avg(raw, "read_iops"),
-        "write_iops_avg": _avg(raw, "write_iops"),
-        "disk_bandwidth_percent_avg": _avg(raw, "disk_bandwidth_consumed_percentage"),
+        "queries_total": _total(raw, "queries"),
+        "storage_percent": _avg(raw, "storage_percent"),
+        "storage_used_bytes": _avg_round(raw, "storage_used"),
         "network_bytes_egress": _total_round(raw, "network_bytes_egress"),
         "network_bytes_ingress": _total_round(raw, "network_bytes_ingress"),
     }
@@ -105,6 +99,11 @@ def _avg(raw, name):
 
 def _avg_round(raw, name):
     v = extract_metric_value(raw, name, "average")
+    return round(v) if v is not None else None
+
+
+def _total(raw, name):
+    v = extract_metric_value(raw, name, "total")
     return round(v) if v is not None else None
 
 

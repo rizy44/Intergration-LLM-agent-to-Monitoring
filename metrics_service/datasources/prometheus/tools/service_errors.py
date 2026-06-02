@@ -1,13 +1,13 @@
 """
-tools/service_errors.py -- get_service_error_rate(service, namespace, range, source_override)
+datasources/prometheus/tools/service_errors.py -- get_service_error_rate(service, namespace, range, source_override)
 """
 
 import logging
 from typing import Any
 
-from ..config import get_settings, validate_label, validate_range
-from ..prometheus_client import query_instant
-from ..source_registry import get_registry
+from ....config import get_settings, validate_label, validate_range
+from ..client import query_instant
+from ..registry import get_registry
 
 logger = logging.getLogger(__name__)
 

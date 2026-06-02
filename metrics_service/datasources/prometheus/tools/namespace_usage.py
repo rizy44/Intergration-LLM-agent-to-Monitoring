@@ -1,13 +1,13 @@
 """
-tools/namespace_usage.py -- get_namespace_resource_usage / get_top_resource_consuming_pods
+datasources/prometheus/tools/namespace_usage.py -- get_namespace_resource_usage / get_top_resource_consuming_pods
 """
 
 import logging
 from typing import Any
 
-from ..config import get_settings, validate_label, validate_range
-from ..prometheus_client import query_instant
-from ..source_registry import get_registry
+from ....config import get_settings, validate_label, validate_range
+from ..client import query_instant
+from ..registry import get_registry
 
 logger = logging.getLogger(__name__)
 

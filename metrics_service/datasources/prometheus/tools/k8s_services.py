@@ -1,5 +1,5 @@
 """
-tools/k8s_services.py - Service list and detail for a Kubernetes namespace.
+datasources/prometheus/tools/k8s_services.py - Service list and detail for a Kubernetes namespace.
 
 get_k8s_services(cluster, namespace, source_override)
   - Lists all K8s Services with type, endpoint counts, and derived status.
@@ -16,9 +16,9 @@ Status derivation rules:
 
 import logging
 
-from ..config import validate_cluster_name, validate_label
-from ..prometheus_client import query_instant
-from ..source_registry import get_registry
+from ....config import validate_cluster_name, validate_label
+from ..client import query_instant
+from ..registry import get_registry
 
 logger = logging.getLogger(__name__)
 
