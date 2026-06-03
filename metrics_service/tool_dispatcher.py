@@ -112,7 +112,7 @@ def dispatch_tool(request: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     source         = (request.get("source") or None)
     # Azure Monitor params
     resource_group = (request.get("resource_group") or "").strip()
-    app_name       = (request.get("app_name") or "").strip()
+    app_name       = (request.get("app_name") or request.get("service") or "").strip()
     server_name    = (request.get("server_name") or "").strip()
 
     # ---- Whitelist check ----

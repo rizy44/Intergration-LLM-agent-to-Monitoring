@@ -1,5 +1,5 @@
 """
-ai_agent.py — OpenAI AI Analysis Layer.
+ai_agent.py — Anthropic Claude AI Analysis Layer.
 
 Receives structured JSON from backend metric tools and returns a
 human-readable explanation. No PromQL, no remediation, no secrets.
@@ -9,7 +9,7 @@ import json
 import logging
 from typing import Any
 
-import openai
+import anthropic
 
 from .config import get_settings
 
@@ -41,18 +41,18 @@ Response format:
 
 def analyze_metrics(tool_name: str, metric_data: dict[str, Any], user_question: str = "") -> str:
     """
-    Send structured *metric_data* to OpenAI for analysis.
+    Send structured *metric_data* to Claude for analysis.
 
     Returns a plain-English explanation suitable for Teams.
     Raises RuntimeError on API failure.
     """
     settings = get_settings()
 
-    if not settings.openai_api_key:
-        logger.error("OPENAI_API_KEY is not configured.")
+    if not settings.anthropic_api_key:
+        logger.error("ANTHROPIC_API_KEY is not configured.")
         raise RuntimeError("AI analysis is not available. The API key is not configured.")
 
-    client = openai.OpenAI(api_key=settings.openai_api_key)
+    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
 
     user_parts = [f"Metric tool used: {tool_name}"]
     if user_question:
@@ -61,26 +61,26 @@ def analyze_metrics(tool_name: str, metric_data: dict[str, Any], user_question: 
     user_message = "\n\n".join(user_parts)
 
     try:
-        response = client.chat.completions.create(
-            model=settings.openai_model,
-            max_tokens=settings.openai_max_tokens,
+        response = client.messages.create(
+            model=settings.anthropic_model,
+            max_tokens=settings.anthropic_max_tokens,
+            system=SYSTEM_PROMPT,
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user",   "content": user_message},
+                {"role": "user", "content": user_message},
             ],
         )
-        return response.choices[0].message.content.strip()
-    except openai.AuthenticationError:
-        logger.error("OpenAI authentication failed.")
+        return response.content[0].text.strip()
+    except anthropic.AuthenticationError:
+        logger.error("Anthropic authentication failed.")
         raise RuntimeError("AI analysis is not available. Please check the API configuration.")
-    except openai.RateLimitError:
-        logger.warning("OpenAI rate limit reached.")
+    except anthropic.RateLimitError:
+        logger.warning("Anthropic rate limit reached.")
         raise RuntimeError(
             "AI analysis is temporarily unavailable due to rate limiting. "
             "Please try again in a moment."
         )
-    except openai.APIError as exc:
-        logger.error("OpenAI API error: %s", type(exc).__name__)
+    except anthropic.APIError as exc:
+        logger.error("Anthropic API error: %s", type(exc).__name__)
         raise RuntimeError("AI analysis encountered an error. Please try again later.")
 
 
@@ -91,10 +91,10 @@ def generate_daily_report_text(metrics_summary: dict[str, Any]) -> str:
     """
     settings = get_settings()
 
-    if not settings.openai_api_key:
+    if not settings.anthropic_api_key:
         raise RuntimeError("AI analysis is not available. The API key is not configured.")
 
-    client = openai.OpenAI(api_key=settings.openai_api_key)
+    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
 
     daily_prompt = (
         "Generate a Daily AKS Health Report for Microsoft Teams based on the "
@@ -120,15 +120,15 @@ def generate_daily_report_text(metrics_summary: dict[str, Any]) -> str:
     )
 
     try:
-        response = client.chat.completions.create(
-            model=settings.openai_model,
-            max_tokens=settings.openai_max_tokens,
+        response = client.messages.create(
+            model=settings.anthropic_model,
+            max_tokens=settings.anthropic_max_tokens,
+            system=SYSTEM_PROMPT,
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user",   "content": daily_prompt},
+                {"role": "user", "content": daily_prompt},
             ],
         )
-        return response.choices[0].message.content.strip()
-    except openai.APIError as exc:
-        logger.error("OpenAI API error during daily report: %s", type(exc).__name__)
+        return response.content[0].text.strip()
+    except anthropic.APIError as exc:
+        logger.error("Anthropic API error during daily report: %s", type(exc).__name__)
         raise RuntimeError("Could not generate the daily report text. Please try again later.")

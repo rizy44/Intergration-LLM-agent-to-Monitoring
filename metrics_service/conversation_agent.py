@@ -1,5 +1,5 @@
 """
-conversation_agent.py — Conversation Agent (first OpenAI pass).
+conversation_agent.py — Conversation Agent (Anthropic Claude pass).
 
 Receives a raw user message (plus optional conversation history for multi-turn)
 and decides which metric tool to call — or asks for clarification, refuses
@@ -28,11 +28,10 @@ Always returns valid JSON with one of four shapes:
 Allowed ranges: 1h, 6h, 12h, 24h, 2d, 7d
 """
 
-import json
 import logging
 from typing import Any
 
-import openai
+import anthropic
 
 from .config import get_settings
 
@@ -58,9 +57,60 @@ ALLOWED_TOOLS = frozenset([
     "get_k8s_workload_detail",
     "get_k8s_services",
     "get_k8s_service_detail",
+    # Azure Monitor tools
+    "list_azure_resources",
+    "get_app_service_performance",
+    "get_mysql_performance",
+    "get_postgres_performance",
 ])
 
 ALLOWED_RANGES = frozenset(["1h", "6h", "12h", "24h", "2d", "7d"])
+
+# ---------------------------------------------------------------------------
+# Claude Tool Use — enforces the 4-shape output contract at the SDK level
+# ---------------------------------------------------------------------------
+
+PARSE_METRIC_REQUEST_TOOL = {
+    "name": "parse_metric_request",
+    "description": (
+        "Parse the user's AKS metric question and return a structured decision. "
+        "You MUST always call this tool. Never answer in prose."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "status": {
+                "type": "string",
+                "enum": ["ready", "needs_clarification", "refused", "unsupported"],
+                "description": "Decision outcome",
+            },
+            "request": {
+                "type": "object",
+                "description": "Populated only when status=ready",
+                "properties": {
+                    "tool":           {"type": "string"},
+                    "cluster":        {"type": ["string", "null"]},
+                    "namespace":      {"type": ["string", "null"]},
+                    "service":        {"type": ["string", "null"]},
+                    "workload_name":  {"type": ["string", "null"]},
+                    "hostname":       {"type": ["string", "null"]},
+                    "range":          {"type": ["string", "null"]},
+                    "source":         {"type": ["string", "null"]},
+                    "resource_group": {"type": ["string", "null"]},
+                    "server_name":    {"type": ["string", "null"]},
+                },
+                "required": ["tool", "cluster", "namespace", "service",
+                              "workload_name", "hostname", "range", "source",
+                              "resource_group", "server_name"],
+            },
+            "message": {
+                "type": "string",
+                "description": "Populated when status is needs_clarification, refused, or unsupported",
+            },
+        },
+        "required": ["status"],
+    },
+}
 
 # ---------------------------------------------------------------------------
 # System prompt — mapping rules, JSON schema, disambiguation, hard rules
@@ -69,26 +119,9 @@ ALLOWED_RANGES = frozenset(["1h", "6h", "12h", "24h", "2d", "7d"])
 CONVERSATION_SYSTEM_PROMPT = """
 You are the Conversation Agent for an AI-powered AKS observability assistant.
 
-Your ONLY job is to parse the user's metric question and return a structured JSON
-decision. You must NEVER answer the question yourself, explain metrics, generate
-PromQL, or suggest any infrastructure action.
-
-=== OUTPUT FORMAT ===
-
-You must always return ONLY raw JSON — no markdown, no commentary, no prose.
-One of these four shapes:
-
-Ready (all required fields known):
-{"status":"ready","request":{"tool":"<name>","cluster":"<val or null>","namespace":"<val or null>","service":"<val or null>","workload_name":"<val or null>","hostname":"<val or null>","range":"<val or null>","source":null}}
-
-Needs clarification (required field missing — ask ALL missing fields at once):
-{"status":"needs_clarification","message":"<clear question asking for all missing fields at once>"}
-
-Refused (remediation, write action, kubectl, PromQL request):
-{"status":"refused","message":"<brief reason, no remediation details>"}
-
-Unsupported (valid read-only question but no Phase 1 tool covers it):
-{"status":"unsupported","message":"<acknowledge intent, list supported queries>"}
+Your ONLY job is to parse the user's metric question and call the parse_metric_request
+tool with a structured decision. You must NEVER answer the question yourself, explain
+metrics, generate PromQL, or suggest any infrastructure action.
 
 === TOOL CATALOG — intent-to-tool mapping ===
 
@@ -244,7 +277,7 @@ Known node hostname aliases — always resolve to canonical hostname before outp
 
 Disambiguation rule:
   If user says "master node" or "master" with NO country context in the message or history:
-    Return: {"status":"needs_clarification","message":"Which master node did you mean?\n- Vietnam master (vn-master_1)\n- Thailand master (tl-sv02)"}
+    Return: needs_clarification with message "Which master node did you mean?\n- Vietnam master (vn-master_1)\n- Thailand master (tl-sv02)"
   Do NOT guess. Do NOT default to either country.
 
 === RANGE RULES ===
@@ -267,6 +300,79 @@ Never ask the user for range — always apply the default when not mentioned.
 - Keep clarification messages short and friendly.
 - If the conversation history already contains the missing value, extract it — do not ask again.
 
+--- GROUP 7: Azure Monitor tools ---
+
+list_azure_resources
+  Triggers : "list resources in X", "what's in resource group X", "show resources in X",
+             "resources in PROD_WE_MASTER_TRADE_SA", "resources in UAT_WE_COPY_TRADE", etc.
+  Required : resource_group
+  Optional : source
+  Output   : resource_group=<group>, all other fields null
+  Rule     : If resource group is mentioned explicitly, always ready — no clarification needed.
+
+get_app_service_performance
+  Triggers : app service name mentioned directly (e.g. "wmt-frontend-prod-sa", "wct-backoffice-prod"),
+             "app service X", "how is X doing", "X performance", "X status" (when X is a known app service)
+  Required : service (set to app service name), resource_group (look up from table below)
+  Optional : range (default 24h), source
+  Output   : service=<app_name>, resource_group=<group>, server_name=null
+  Rule     : Always resolve resource_group from AZURE RESOURCE GROUP LOOKUP TABLE.
+             Output the app service name in the `service` field.
+
+get_mysql_performance
+  Triggers : MySQL server name mentioned directly (e.g. "wmt-mysql-prod-sa", "wct-backoffice-mysql-uat"),
+             "mysql X", "X mysql", "mysql performance", "database X" (when X is a known mysql server)
+  Required : server_name (set to MySQL server name), resource_group (look up from table below)
+  Optional : range (default 24h), source
+  Output   : server_name=<mysql_name>, resource_group=<group>, service=null
+
+get_postgres_performance
+  Triggers : PostgreSQL server name mentioned directly (e.g. "lfg-wp-postgresql-uat", "lfg-wct-pgsql-uat-ca"),
+             "postgres X", "postgresql X", "X postgres", "database X" (when X is a known postgres server)
+  Required : server_name (set to PostgreSQL server name), resource_group (look up from table below)
+  Optional : range (default 24h), source
+  Output   : server_name=<postgres_name>, resource_group=<group>, service=null
+
+=== AZURE RESOURCE GROUP LOOKUP TABLE ===
+
+Use this table to resolve any Azure resource name to its resource_group.
+When the user mentions a resource name in this table, set resource_group automatically — do NOT ask.
+
+  Resource Group: PROD_WE_MASTER_TRADE_SA
+    wmt-frontend-prod-sa         → app_service → use get_app_service_performance
+    wmt-backoffice-prod-sa       → app_service → use get_app_service_performance
+    wmt-mysql-prod-sa            → mysql       → use get_mysql_performance
+
+  Resource Group: UAT_WE_MASTER_TRADE_SA
+    wmt-backoffice-uat-sa        → app_service → use get_app_service_performance
+    wmt-frontend-uat-sa          → app_service → use get_app_service_performance
+    wmt-backoffice-odoo-uat-sa   → app_service → use get_app_service_performance
+    wmt-mysql-uat-sa             → mysql       → use get_mysql_performance
+
+  Resource Group: UAT_WE_PAYMENT
+    lfg-wp-postgresql-uat        → postgres    → use get_postgres_performance
+
+  Resource Group: WGD_PROD
+    lfg-wp-postgresql-prod       → postgres    → use get_postgres_performance
+
+  Resource Group: UAT_WE_COPY_TRADE
+    wmt-app-bo-trading-mgt-uat-ca → app_service → use get_app_service_performance
+    wct-frontend-uat              → app_service → use get_app_service_performance
+    wct-backoffice-uat            → app_service → use get_app_service_performance
+    wct-backoffice-mysql-uat      → mysql       → use get_mysql_performance
+    lfg-wct-pgsql-uat-ca          → postgres    → use get_postgres_performance
+
+  Resource Group: PROD_WE_COPY_TRADE
+    wmt-app-bo-trading-mgt-prod-ca → app_service → use get_app_service_performance
+    wct-frontend-prod              → app_service → use get_app_service_performance
+    wct-backoffice-prod            → app_service → use get_app_service_performance
+    wct-backoffice-mysql-prod      → mysql       → use get_mysql_performance
+    dataplatform-psql-prod         → postgres    → use get_postgres_performance
+
+Clarification rule for unknown Azure resources:
+  If the user mentions a resource name that is NOT in the table above AND no resource_group is explicitly provided:
+    Return: {"status":"needs_clarification","message":"Which Azure resource group does '<name>' belong to?\nKnown resource groups: PROD_WE_MASTER_TRADE_SA, UAT_WE_MASTER_TRADE_SA, UAT_WE_PAYMENT, WGD_PROD, UAT_WE_COPY_TRADE, PROD_WE_COPY_TRADE"}
+
 === HARD RULES ===
 
 1. Never generate PromQL.
@@ -276,7 +382,6 @@ Never ask the user for range — always apply the default when not mentioned.
 5. The "source" field is always null unless the user explicitly names a data source.
 6. If the request is a valid read-only metric question but no tool covers it, return "unsupported" — NOT "refused".
    Only return "refused" for remediation, write actions, or kubectl requests.
-7. Always return raw JSON only — no markdown fences, no prose.
 """.strip()
 
 # ---------------------------------------------------------------------------
@@ -289,7 +394,7 @@ def parse_user_message(
     history: list[dict] | None = None,
 ) -> dict[str, Any]:
     """
-    Send *user_message* to the Conversation Agent.
+    Send *user_message* to the Conversation Agent (Claude Tool Use).
 
     Parameters
     ----------
@@ -307,19 +412,19 @@ def parse_user_message(
       {"status": "refused",             "message": "..."}
       {"status": "unsupported",         "message": "..."}
 
-    Raises RuntimeError on OpenAI API failure.
+    Raises RuntimeError on Anthropic API failure.
     """
     settings = get_settings()
 
-    if not settings.openai_api_key:
-        logger.error("OPENAI_API_KEY is not configured.")
+    if not settings.anthropic_api_key:
+        logger.error("ANTHROPIC_API_KEY is not configured.")
         raise RuntimeError(
             "AI Conversation Agent is not available. The API key is not configured."
         )
 
-    client = openai.OpenAI(api_key=settings.openai_api_key)
+    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
 
-    messages = [{"role": "system", "content": CONVERSATION_SYSTEM_PROMPT}]
+    messages: list[dict] = []
     if history:
         messages.extend(history)
     messages.append({"role": "user", "content": user_message})
@@ -328,29 +433,44 @@ def parse_user_message(
                  len(user_message), len(history) if history else 0)
 
     try:
-        response = client.chat.completions.create(
-            model=settings.openai_model,
+        response = client.messages.create(
+            model=settings.anthropic_model,
             max_tokens=512,
-            response_format={"type": "json_object"},
+            system=CONVERSATION_SYSTEM_PROMPT,
+            tools=[PARSE_METRIC_REQUEST_TOOL],
+            tool_choice={"type": "tool", "name": "parse_metric_request"},
             messages=messages,
         )
-        raw = response.choices[0].message.content.strip()
-    except openai.AuthenticationError:
-        logger.error("OpenAI authentication failed (ConversationAgent).")
+        tool_block = next(
+            (b for b in response.content if b.type == "tool_use"), None
+        )
+        if tool_block is None:
+            logger.error("ConversationAgent: no tool_use block in response.")
+            return {
+                "status": "needs_clarification",
+                "message": (
+                    "I couldn't understand that request. "
+                    "Could you rephrase your metric question? "
+                    "For example: 'Show me pod restarts in namespace prod over the last 24 hours.'"
+                ),
+            }
+        result: dict[str, Any] = tool_block.input
+    except anthropic.AuthenticationError:
+        logger.error("Anthropic authentication failed (ConversationAgent).")
         raise RuntimeError(
             "AI service is not available. Please check the API configuration."
         )
-    except openai.RateLimitError:
-        logger.warning("OpenAI rate limit reached (ConversationAgent).")
+    except anthropic.RateLimitError:
+        logger.warning("Anthropic rate limit reached (ConversationAgent).")
         raise RuntimeError(
             "AI service is temporarily unavailable due to rate limiting. "
             "Please try again in a moment."
         )
-    except openai.APIError as exc:
-        logger.error("OpenAI API error (ConversationAgent): %s", type(exc).__name__)
+    except anthropic.APIError as exc:
+        logger.error("Anthropic API error (ConversationAgent): %s", type(exc).__name__)
         raise RuntimeError("AI service encountered an error. Please try again later.")
 
-    return _parse_and_validate(raw)
+    return _validate(result)
 
 
 # ---------------------------------------------------------------------------
@@ -358,31 +478,8 @@ def parse_user_message(
 # ---------------------------------------------------------------------------
 
 
-def _parse_and_validate(raw: str) -> dict[str, Any]:
-    """Parse raw JSON from the Conversation Agent and validate the schema."""
-    clean = raw.strip()
-    if clean.startswith("```"):
-        lines = clean.splitlines()
-        clean = "\n".join(
-            line for line in lines if not line.strip().startswith("```")
-        ).strip()
-
-    try:
-        parsed = json.loads(clean)
-    except json.JSONDecodeError:
-        logger.error(
-            "ConversationAgent returned non-JSON output (first 200 chars): %s",
-            clean[:200],
-        )
-        return {
-            "status": "needs_clarification",
-            "message": (
-                "I couldn't understand that request. "
-                "Could you rephrase your metric question? "
-                "For example: 'Show me pod restarts in namespace prod over the last 24 hours.'"
-            ),
-        }
-
+def _validate(parsed: dict[str, Any]) -> dict[str, Any]:
+    """Validate the structured output from the Tool Use response."""
     status = parsed.get("status")
     if status not in ("ready", "needs_clarification", "refused", "unsupported"):
         logger.error("ConversationAgent returned unknown status: %s", status)

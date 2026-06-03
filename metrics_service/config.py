@@ -110,10 +110,10 @@ class Settings(BaseSettings):
     prometheus_default_range: str = "24h"
     allowed_ranges: str = "1h,6h,12h,24h,2d,7d"
 
-    # OpenAI
-    openai_api_key: str = ""
-    openai_model: str = "gpt-4o"
-    openai_max_tokens: int = 1024
+    # Anthropic
+    anthropic_api_key: str = ""
+    anthropic_model: str = "claude-sonnet-4-6"
+    anthropic_max_tokens: int = 1024
 
     # Teams — Incoming Webhook (daily reports and /teams/chat outbound)
     teams_webhook_url: str = ""

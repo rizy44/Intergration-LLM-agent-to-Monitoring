@@ -26,7 +26,7 @@ import json as _json
 import logging
 from typing import Annotated
 
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request
 from pydantic import BaseModel
 
 from .chat_controller import ChatControllerResult, handle_chat_message
@@ -528,22 +528,33 @@ def teams_chat(request: TeamsChatRequest):
 # ---------------------------------------------------------------------------
 
 
+def _process_webhook_in_background(message: str, sender: str | None) -> None:
+    """Background task: run full two-agent flow and push result via Incoming Webhook."""
+    try:
+        handle_chat_message(message, user=sender, send_to_teams=True)
+    except Exception:
+        logger.exception(
+            "Background webhook processing failed for message from='%s'", sender
+        )
+
+
 @app.post("/teams/webhook", tags=["Teams"])
-async def teams_outgoing_webhook(request: Request):
+async def teams_outgoing_webhook(request: Request, background_tasks: BackgroundTasks):
     """
     Teams Outgoing Webhook receiver.
 
     How it works:
     1. User types a message and @mentions the bot in a Teams channel.
     2. Teams POSTs to this endpoint with an HMAC-SHA256 Authorization header.
-    3. We validate the signature using TEAMS_OUTGOING_WEBHOOK_SECRET.
-    4. We extract the clean message text (stripping the @mention tag).
-    5. We run the two-agent flow: Conversation Agent -> Tool Dispatcher -> Explanation Agent.
-    6. We return {"type": "message", "text": "..."} in the HTTP response.
-    7. Teams renders that text as a bot reply in the channel thread.
+    3. We validate the signature and return an immediate acknowledgement (<5s).
+    4. The full two-agent flow runs in a background task.
+    5. The result is pushed to the Teams channel via the Incoming Webhook (TEAMS_WEBHOOK_URL).
+
+    Why async: Teams Outgoing Webhook has a hard 5-second response timeout.
+    The full pipeline (Conversation Agent → metric query → Explanation Agent) can
+    take 5–15s, so we must acknowledge immediately and deliver the answer separately.
 
     Security: requests without a valid HMAC signature are rejected with HTTP 401.
-    The reply travels back via the HTTP response body only - no Incoming Webhook call.
     """
     settings = get_settings()
 
@@ -584,8 +595,8 @@ async def teams_outgoing_webhook(request: Request):
         "teams/webhook message from='%s' text_len=%d", sender, len(raw_text)
     )
 
-    result = handle_chat_message(raw_text, user=sender, send_to_teams=False)
-    return build_teams_response(result.reply)
+    background_tasks.add_task(_process_webhook_in_background, raw_text, sender)
+    return build_teams_response("⏳ Processing your request, I'll reply shortly...")
 
 
 # ---------------------------------------------------------------------------
