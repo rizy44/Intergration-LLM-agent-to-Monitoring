@@ -1,0 +1,31 @@
+{{- $name := "moni-agent" -}}
+{{- $config := index .Values $name -}}
+{{- if and $config $config.ingress $config.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "deploy-bot.fullname" . }}-{{ $name }}
+  labels:
+    {{- include "deploy-bot.labels" (dict "Values" .Values "Release" .Release "Chart" .Chart "name" $name) | nindent 4 }}
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: {{ $config.ingress.className | default "nginx" }}
+  tls:
+    - hosts:
+        - {{ $config.ingress.host }}
+      secretName: {{ $config.ingress.tlsSecret }}
+  rules:
+    - host: {{ $config.ingress.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "deploy-bot.fullname" . }}-{{ $name }}
+                port:
+                  number: {{ $config.service.port }}
+{{- end }}

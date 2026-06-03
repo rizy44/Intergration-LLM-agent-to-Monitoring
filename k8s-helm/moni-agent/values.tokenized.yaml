@@ -17,6 +17,12 @@ moni-agent:
     targetPort: 8000
     name: http
 
+  ingress:
+    enabled: true
+    className: "nginx"
+    host: "__INGRESS_HOST__"
+    tlsSecret: "__INGRESS_TLS_SECRET__"
+
   livenessProbe:
     httpGet:
       path: /health
