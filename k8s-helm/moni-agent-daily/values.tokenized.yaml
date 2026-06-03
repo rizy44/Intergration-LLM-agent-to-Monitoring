@@ -12,11 +12,11 @@ moni-agent-daily:
 
   resources:
     requests:
-      cpu: "__MONI_AGENT_REQUEST_CPU__"
-      memory: "__MONI_AGENT_REQUEST_MEMORY__"
+      cpu: "500m"
+      memory: "512Mi"
     limits:
-      cpu: "__MONI_AGENT_LIMIT_CPU__"
-      memory: "__MONI_AGENT_LIMIT_MEMORY__"
+      cpu: "1000m"
+      memory: "1024Mi"
 
   affinity:
     nodeAffinity:
