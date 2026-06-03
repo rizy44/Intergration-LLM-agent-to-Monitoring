@@ -55,9 +55,21 @@ moni-agent-daily:
     - name: DAILY_REPORT_NAMESPACES
       value: "__DAILY_REPORT_NAMESPACES__"
 
-    # OpenAI
-    - name: OPENAI_API_KEY
-      value: "__OPENAI_API_KEY__"
+    # Azure Monitor REST API (management.azure.com) — for App Service, MySQL, PostgreSQL metrics
+    - name: AZURE_RESOURCE_NAME
+      value: "__AZURE_RESOURCE_NAME__"
+    - name: AZURE_RESOURCE_TENANT_ID
+      value: "__AZURE_RESOURCE_TENANT_ID__"
+    - name: AZURE_RESOURCE_CLIENT_ID
+      value: "__AZURE_RESOURCE_CLIENT_ID__"
+    - name: AZURE_RESOURCE_CLIENT_SECRET
+      value: "__AZURE_RESOURCE_CLIENT_SECRET__"
+    - name: AZURE_RESOURCE_SUBSCRIPTION_ID
+      value: "__AZURE_RESOURCE_SUBSCRIPTION_ID__"
+
+    # Anthropic
+    - name: ANTHROPIC_API_KEY
+      value: "__ANTHROPIC_API_KEY__"
 
     # Microsoft Teams
     - name: TEAMS_WEBHOOK_URL
