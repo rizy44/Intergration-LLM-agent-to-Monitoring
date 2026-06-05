@@ -81,7 +81,15 @@ def _handle_error(exc: httpx.HTTPStatusError, source: AzureMonitorSource) -> Non
     if status == 429:
         logger.warning("Azure Monitor rate limited. source=%s", source.name)
         raise RuntimeError(_safe_error(source, "request was rate-limited (HTTP 429). Please retry later."))
-    logger.error("Azure Monitor HTTP error. source=%s status=%s", source.name, status)
+    # Log full response body to surface the exact Azure error message
+    try:
+        raw = exc.response.text[:2000]  # cap to avoid flooding logs
+        logger.error(
+            "Azure Monitor HTTP error. source=%s status=%s body=%s",
+            source.name, status, raw,
+        )
+    except Exception:
+        logger.error("Azure Monitor HTTP error. source=%s status=%s", source.name, status)
     raise RuntimeError(_safe_error(source, f"HTTP {status}."))
 
 

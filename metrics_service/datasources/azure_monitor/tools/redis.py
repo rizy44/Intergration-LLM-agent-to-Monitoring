@@ -24,7 +24,7 @@ _RESOURCE_TYPE = "Microsoft.Cache/Redis"
 
 # Gauge metrics — support Average aggregation
 _GAUGE_METRICS = [
-    "usedmemory_percent",
+    "usedmemorypercentage",
     "connectedclients",
     "serverLoad",
     "operationsPerSecond",
@@ -32,8 +32,8 @@ _GAUGE_METRICS = [
 
 # Counter metrics — support Total aggregation only
 _COUNTER_METRICS = [
-    "cacheHits",
-    "cacheMisses",
+    "cachehits",
+    "cachemisses",
 ]
 
 
@@ -81,8 +81,9 @@ def get_redis_performance(
         f"/providers/{_RESOURCE_TYPE}/{cache_name.strip()}"
     )
 
-    # Query gauge metrics (Average)
-    gauge_raw = query_metrics(resource_uri, _GAUGE_METRICS, range, source, aggregation="Average,Maximum")
+    # Query gauge metrics — Average only.
+    # Maximum is not supported by serverLoad and operationsPerSecond, causes HTTP 400.
+    gauge_raw = query_metrics(resource_uri, _GAUGE_METRICS, range, source, aggregation="Average")
 
     # Query counter metrics (Total only — requesting Average causes HTTP 400)
     counter_raw = query_metrics(resource_uri, _COUNTER_METRICS, range, source, aggregation="Total")
@@ -92,12 +93,12 @@ def get_redis_performance(
         "resource_group": resource_group,
         "range": range,
         "source": source.safe_info(),
-        "used_memory_percent_avg": _avg(gauge_raw, "usedmemory_percent"),
+        "used_memory_percent_avg": _avg(gauge_raw, "usedmemorypercentage"),
         "connected_clients_avg":   _avg(gauge_raw, "connectedclients"),
         "server_load_avg":         _avg(gauge_raw, "serverLoad"),
         "ops_per_second_avg":      _avg(gauge_raw, "operationsPerSecond"),
-        "cache_hits_total":        _total(counter_raw, "cacheHits"),
-        "cache_misses_total":      _total(counter_raw, "cacheMisses"),
+        "cache_hits_total":   _total(counter_raw, "cachehits"),
+        "cache_misses_total": _total(counter_raw, "cachemisses"),
     }
 
 
