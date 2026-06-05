@@ -102,23 +102,30 @@ def send_error_to_teams(error_message: str) -> None:
 # ---------------------------------------------------------------------------
 
 
+_REPORT_DIVIDER = "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+
 def _build_adaptive_card(title: str, body: str) -> dict:
     """
-    Build a simple Teams message payload.
+    Build a Teams MessageCard payload.
 
-    Uses the legacy Incoming Webhook format (MessageCard / simple JSON)
-    which is broadly compatible across Teams connector versions.
+    Splits the report body on the section divider so each logical block
+    (header, AKS clusters, each project) becomes its own Teams section.
+    sections[].text preserves newlines correctly; activityText collapses them.
     """
+    chunks = [c.strip() for c in body.split(_REPORT_DIVIDER) if c.strip()]
+
+    sections = []
+    for i, chunk in enumerate(chunks):
+        section: dict = {"text": chunk, "markdown": True}
+        if i > 0:
+            section["separator"] = True
+        sections.append(section)
+
     return {
         "@type": "MessageCard",
         "@context": "http://schema.org/extensions",
         "themeColor": "0076D7",
         "summary": title,
-        "sections": [
-            {
-                "activityTitle": f"**{title}**",
-                "activityText": body,
-                "markdown": True,
-            }
-        ],
+        "sections": sections,
     }

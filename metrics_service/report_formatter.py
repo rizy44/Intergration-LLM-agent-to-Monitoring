@@ -316,23 +316,28 @@ def format_daily_report(
 ) -> str:
     today = (report_date or date.today()).strftime("%Y-%m-%d")
 
-    lines: list[str] = [
-        f"📊 **Daily Production Health Report**",
-        f"📅 {today}  ·  Last 24h",
-        "",
-        _DIVIDER,
-        format_aks_section(aks_data),
-    ]
+    # Each section is a list of lines joined with \n.
+    # Sections are separated by _DIVIDER (with blank lines around it) so that
+    # teams_sender can split on _DIVIDER into separate Teams card sections.
+    sections: list[str] = []
 
+    # Header
+    sections.append(
+        f"📊 **Daily Production Health Report**\n"
+        f"📅 {today}  ·  Last 24h"
+    )
+
+    # AKS clusters
+    sections.append(format_aks_section(aks_data))
+
+    # Azure projects
     for project in azure_data.get("projects", []):
-        lines.append(_DIVIDER)
-        lines.extend(format_project_section(project["name"], project))
+        sections.append("\n".join(format_project_section(project["name"], project)))
 
-    lines.append(_DIVIDER)
-
-    report = "\n".join(lines)
+    # Join sections with divider surrounded by blank lines
+    report = f"\n\n{_DIVIDER}\n\n".join(sections)
 
     if len(report) > 20_000:
-        report = report[:19_900] + "\n\n_(report truncated)_"
+        report = report[:19_900] + f"\n\n{_DIVIDER}\n\n_(report truncated)_"
 
     return report
