@@ -1,3 +1,4 @@
+from .aks_cluster_overview import get_aks_cluster_overview
 from .cluster_health import get_cluster_health
 from .k8s_namespace_overview import get_k8s_namespace_overview
 from .k8s_services import get_k8s_service_detail, get_k8s_services
@@ -10,6 +11,7 @@ from .service_errors import get_service_error_rate
 from .unhealthy_pods import get_unhealthy_pods
 
 __all__ = [
+    "get_aks_cluster_overview",
     "get_cluster_health",
     "get_k8s_namespace_overview",
     "get_k8s_service_detail",

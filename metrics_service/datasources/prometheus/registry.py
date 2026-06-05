@@ -46,11 +46,12 @@ DEFAULT_SOURCE_TYPE_FOR_METRIC = {
     "namespace_usage": "node",
     "top_consumers":   "node",
     "service_errors":        "node",
-    "k8s_namespace_overview": "aks",
-    "k8s_workloads":          "aks",
-    "k8s_workload_detail":    "aks",
-    "k8s_services":           "aks",
-    "k8s_service_detail":     "aks",
+    "k8s_namespace_overview":  "aks",
+    "k8s_workloads":           "aks",
+    "k8s_workload_detail":     "aks",
+    "k8s_services":            "aks",
+    "k8s_service_detail":      "aks",
+    "aks_cluster_overview":    "aks",
 }
 
 

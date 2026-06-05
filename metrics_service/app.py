@@ -59,6 +59,8 @@ from .datasources.azure_monitor.tools import (
     list_azure_resources,
     get_mysql_performance,
     get_postgres_performance,
+    get_redis_performance,
+    get_service_bus_performance,
 )
 
 # ---------------------------------------------------------------------------
@@ -698,6 +700,48 @@ def azure_postgres(
         validate_azure_name(server_name, "server_name")
         validate_range(range, get_settings().allowed_ranges_set)
         return get_postgres_performance(resource_group=resource_group, server_name=server_name, range=range)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except RuntimeError as exc:
+        raise _runtime_to_http(exc)
+
+
+@app.get("/azure/redis/{cache_name}", tags=["Azure Monitor"])
+def azure_redis(
+    cache_name: str,
+    resource_group: Annotated[str, RG_QUERY],
+    range: Annotated[str, AZURE_RANGE_QUERY] = "24h",
+):
+    """
+    Performance metrics for an Azure Cache for Redis resource (Microsoft.Cache/Redis).
+    Returns memory %, connected clients, server load, cache hits/misses, ops/sec.
+    """
+    try:
+        validate_azure_name(resource_group, "resource_group")
+        validate_azure_name(cache_name, "cache_name")
+        validate_range(range, get_settings().allowed_ranges_set)
+        return get_redis_performance(resource_group=resource_group, cache_name=cache_name, range=range)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except RuntimeError as exc:
+        raise _runtime_to_http(exc)
+
+
+@app.get("/azure/service-bus/{namespace_name}", tags=["Azure Monitor"])
+def azure_service_bus(
+    namespace_name: str,
+    resource_group: Annotated[str, RG_QUERY],
+    range: Annotated[str, AZURE_RANGE_QUERY] = "24h",
+):
+    """
+    Performance metrics for an Azure Service Bus namespace (Microsoft.ServiceBus/namespaces).
+    Returns active messages, dead-lettered messages, incoming/outgoing counts, server errors.
+    """
+    try:
+        validate_azure_name(resource_group, "resource_group")
+        validate_azure_name(namespace_name, "namespace_name")
+        validate_range(range, get_settings().allowed_ranges_set)
+        return get_service_bus_performance(resource_group=resource_group, namespace_name=namespace_name, range=range)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except RuntimeError as exc:

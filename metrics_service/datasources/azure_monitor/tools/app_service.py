@@ -67,7 +67,11 @@ def get_app_service_performance(
     registry = get_azure_registry()
     source = registry.get_by_name(source_override) if source_override else registry.get_default()
 
-
+    resource_uri = (
+        f"/subscriptions/{source.subscription_id}"
+        f"/resourceGroups/{resource_group}"
+        f"/providers/{_RESOURCE_TYPE}/{app_name.strip()}"
+    )
 
     raw = query_metrics(resource_uri, _METRIC_NAMES, range, source)
 

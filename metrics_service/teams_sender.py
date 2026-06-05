@@ -77,8 +77,8 @@ def send_to_teams(message: str, title: str = "AKS Metrics Assistant") -> None:
 
 
 def send_daily_report(report_text: str) -> None:
-    """Convenience wrapper for sending the daily AKS health report."""
-    send_to_teams(report_text, title="Daily AKS Health Report")
+    """Convenience wrapper for sending the daily production health report."""
+    send_to_teams(report_text, title="Daily Production Health Report")
 
 
 def send_error_to_teams(error_message: str) -> None:

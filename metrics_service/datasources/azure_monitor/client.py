@@ -125,6 +125,7 @@ def query_metrics(
     range_str: str,
     source: AzureMonitorSource,
     granularity_minutes: int | None = None,
+    aggregation: str = "Average,Maximum,Total",
 ) -> list:
     """
     Query Azure Monitor metrics for a specific resource.
@@ -141,6 +142,11 @@ def query_metrics(
     source : AzureMonitorSource
     granularity_minutes : int | None
         Override granularity. If None, auto-selected based on range.
+    aggregation : str
+        Comma-separated aggregation types. Default "Average,Maximum,Total".
+        Override when a resource type only supports a subset — e.g. Counter metrics
+        (cacheHits, cacheMisses) only support "Total"; requesting Average for them
+        causes HTTP 400.
 
     Returns
     -------
@@ -162,7 +168,7 @@ def query_metrics(
         "metricnames": metricnames,
         "timespan": timespan,
         "interval": interval,
-        "aggregation": "Average,Maximum,Total",
+        "aggregation": aggregation,
     }
 
     logger.debug(
