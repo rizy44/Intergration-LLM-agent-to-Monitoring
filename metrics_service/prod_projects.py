@@ -1,24 +1,10 @@
 """
 prod_projects.py — Static production resource mapping for the daily report.
 
-AKS_CLUSTERS: the two production AKS clusters, both scraped by
-              uat-monitor-workspace-prometheus.
-
 PROD_PROJECTS: the three production Azure resource groups with their
                App Services, MySQL, PostgreSQL, Redis, and Service Bus resources.
                UAT resource groups are intentionally excluded.
 """
-
-AKS_CLUSTERS = [
-    {
-        "name": "wct-aks-prod",
-        "source": "uat-monitor-workspace-prometheus",
-    },
-    {
-        "name": "wmt-aks-prod-sa",
-        "source": "uat-monitor-workspace-prometheus",
-    },
-]
 
 PROD_PROJECTS = [
     {
@@ -72,7 +58,7 @@ PROD_PROJECTS = [
             "dataplatform-rediscache-prod",
         ],
         "service_bus": [
-            "wct-rediscache-prod",
+            "wct-servicebus-prod",
         ],
     },
 ]

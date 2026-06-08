@@ -2,7 +2,7 @@
 report_formatter.py — Rule-based daily production health report formatter.
 
 No AI calls. Thresholds drive ✅ / ⚠️ / 🔴 status per resource.
-Entry point: format_daily_report(aks_data, azure_data, report_date)
+Entry point: format_daily_report(azure_data, report_date)
 """
 
 from datetime import date
@@ -30,11 +30,6 @@ _REDIS_LOAD_WARN = 75.0
 _SB_DEAD_WARN   = 1
 _SB_DEAD_CRIT   = 10
 _SB_ACTIVE_WARN = 1000
-
-_AKS_CPU_WARN  = 70.0
-_AKS_CPU_CRIT  = 90.0
-_AKS_MEM_WARN  = 80.0
-_AKS_MEM_CRIT  = 90.0
 
 
 # ---------------------------------------------------------------------------
@@ -91,56 +86,6 @@ def _num(v: float | int | None) -> str:
 
 def _conn(v: float | None) -> str:
     return str(int(v)) if v is not None else "—"
-
-
-# ---------------------------------------------------------------------------
-# AKS section
-# ---------------------------------------------------------------------------
-
-def _format_aks_cluster(cluster: dict) -> list[str]:
-    name   = cluster.get("cluster_name", "unknown")
-    pools  = cluster.get("pools") or []
-    error  = cluster.get("error")
-
-    lines = [f"**☸️  {name}**"]
-
-    if error or not pools:
-        lines.append("  _(no data available)_")
-        return lines
-
-    for pool in pools:
-        pname   = pool.get("pool_name", "unknown")
-        total   = pool.get("node_count", 0)
-        ready   = pool.get("ready_nodes", 0)
-        avg_cpu = pool.get("avg_cpu_percent")
-        max_cpu = pool.get("max_cpu_percent")
-        avg_mem = pool.get("avg_memory_percent")
-        max_mem = pool.get("max_memory_percent")
-
-        node_ok  = "✅" if ready == total else ("⚠️" if ready > 0 else "🔴")
-        cpu_icon = _icon(avg_cpu, _AKS_CPU_WARN, _AKS_CPU_CRIT)
-        mem_icon = _icon(avg_mem, _AKS_MEM_WARN, _AKS_MEM_CRIT)
-
-        cpu_str = f"{cpu_icon} {_pct(avg_cpu)} (max {_pct(max_cpu)})" if avg_cpu is not None else "—"
-        mem_str = f"{mem_icon} {_pct(avg_mem)} (max {_pct(max_mem)})" if avg_mem is not None else "—"
-
-        lines.append(
-            f"  {node_ok} **{pname}** — {ready}/{total} nodes"
-            f"  ·  CPU {cpu_str}  ·  Mem {mem_str}"
-        )
-
-    return lines
-
-
-def format_aks_section(aks_data: dict) -> str:
-    clusters = aks_data.get("clusters") or []
-    if not clusters:
-        return "**☸️  AKS**\n  _(no clusters configured)_"
-
-    blocks = []
-    for c in clusters:
-        blocks.append("\n".join(_format_aks_cluster(c)))
-    return "\n\n".join(blocks)
 
 
 # ---------------------------------------------------------------------------
@@ -310,29 +255,26 @@ _DIVIDER = "━━━━━━━━━━━━━━━━━━━━━━�
 
 
 def format_daily_report(
-    aks_data: dict,
     azure_data: dict,
     report_date: date | None = None,
 ) -> str:
     today = (report_date or date.today()).strftime("%Y-%m-%d")
 
-    # Each section is a list of lines joined with \n.
-    # Sections are separated by _DIVIDER (with blank lines around it) so that
-    # teams_sender can split on _DIVIDER into separate Teams card sections.
+    # Each section is a list of lines joined with \n\n so Teams renders each
+    # item on its own line (single \n is treated as a space in MessageCard markdown).
+    # Sections are separated by _DIVIDER so teams_sender splits them into
+    # separate Teams card sections.
     sections: list[str] = []
 
     # Header
     sections.append(
-        f"📊 **Daily Production Health Report**\n"
+        f"📊 **Daily Production Health Report**\n\n"
         f"📅 {today}  ·  Last 24h"
     )
 
-    # AKS clusters
-    sections.append(format_aks_section(aks_data))
-
-    # Azure projects
+    # Azure projects — join with \n\n so each item line renders separately in Teams
     for project in azure_data.get("projects", []):
-        sections.append("\n".join(format_project_section(project["name"], project)))
+        sections.append("\n\n".join(format_project_section(project["name"], project)))
 
     # Join sections with divider surrounded by blank lines
     report = f"\n\n{_DIVIDER}\n\n".join(sections)

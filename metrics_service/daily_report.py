@@ -4,7 +4,6 @@ daily_report.py — Daily Production Health Report Orchestrator.
 Full pipeline:
 
   Kubernetes CronJob
-    → collect_aks_metrics()           — AKS clusters via Prometheus
     → collect_azure_project_metrics() — App Services, DBs, Redis, Service Bus
     → format_daily_report()           — rule-based formatter (no AI)
     → send_daily_report()             — posts to Microsoft Teams
@@ -24,37 +23,11 @@ from .datasources.azure_monitor.tools import (
     get_redis_performance,
     get_service_bus_performance,
 )
-from .datasources.prometheus.tools import get_aks_cluster_overview
-from .prod_projects import AKS_CLUSTERS, PROD_PROJECTS
+from .prod_projects import PROD_PROJECTS
 from .report_formatter import format_daily_report
 from .config import get_settings
 
 logger = logging.getLogger(__name__)
-
-
-# ---------------------------------------------------------------------------
-# AKS metrics collection
-# ---------------------------------------------------------------------------
-
-def collect_aks_metrics() -> dict[str, Any]:
-    """
-    Collect per-agent-pool CPU, memory, and node readiness for all prod AKS clusters.
-    Each cluster failure is recorded without aborting the others.
-    """
-    result: dict[str, Any] = {"clusters": [], "errors": []}
-
-    for cluster_cfg in AKS_CLUSTERS:
-        cluster_name = cluster_cfg["name"]
-        source = cluster_cfg["source"]
-        try:
-            data = get_aks_cluster_overview(cluster_name, source_override=source)
-            result["clusters"].append(data)
-        except Exception as exc:
-            logger.warning("Failed to collect AKS metrics. cluster=%s error=%s", cluster_name, exc)
-            result["clusters"].append({"cluster_name": cluster_name, "pools": [], "error": str(exc)})
-            result["errors"].append(f"{cluster_name}: unavailable")
-
-    return result
 
 
 # ---------------------------------------------------------------------------
@@ -132,19 +105,11 @@ def _safe_call(fn, resource_group: str, resource_name: str, errors: list, label:
 def run_daily_report() -> None:
     """
     Full daily report pipeline:
-    1. Collect AKS cluster metrics (Prometheus).
-    2. Collect Azure project metrics (Azure Monitor REST API).
-    3. Format the report using rule-based formatter.
-    4. Post to Microsoft Teams.
+    1. Collect Azure project metrics (Azure Monitor REST API).
+    2. Format the report using rule-based formatter.
+    3. Post to Microsoft Teams.
     """
     logger.info("Starting daily production health report.")
-
-    try:
-        aks_data = collect_aks_metrics()
-    except Exception:
-        logger.exception("Unexpected error collecting AKS metrics.")
-        send_error_to_teams("The daily report could not be generated because AKS metrics collection failed.")
-        return
 
     try:
         azure_data = collect_azure_project_metrics()
@@ -154,7 +119,7 @@ def run_daily_report() -> None:
         return
 
     try:
-        report_text = format_daily_report(aks_data, azure_data, report_date=date.today())
+        report_text = format_daily_report(azure_data, report_date=date.today())
     except Exception:
         logger.exception("Unexpected error formatting daily report.")
         send_error_to_teams("The daily report could not be generated because report formatting failed.")
