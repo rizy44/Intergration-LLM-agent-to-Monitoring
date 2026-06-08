@@ -7,8 +7,7 @@ resources:
     - repository: pipeline-templates
       type: git
       name: DevOps/Pipeline_Templates
-      ref: refs/heads/main
-
+      ref: refs/heads/pipeline-mt5-checker
 extends:
   template: pipeline.moni-agent.yaml@pipeline-templates
   parameters:
