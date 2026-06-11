@@ -33,9 +33,16 @@ from pydantic import BaseModel
 
 import hmac as _hmac
 
+import asyncio as _asyncio
+
 from .alert_formatter import AlertPayloadError, format_alertmanager_payload
 from .azure_alert_check import run_azure_alert_check
-from .chat_controller import ChatControllerResult, handle_chat_message
+from .chat_controller import (
+    ChatControllerResult,
+    decide_chat_message,
+    execute_chat_decision,
+    handle_chat_message,
+)
 from .teams_sender import send_alert_to_teams
 from .config import get_settings, validate_azure_name, validate_cluster_name, validate_hostname, validate_label, validate_range, validate_source_name, validate_workload_name
 from .daily_report import run_daily_report
@@ -537,6 +544,12 @@ def teams_chat(request: TeamsChatRequest):
 # ---------------------------------------------------------------------------
 
 
+# Budget for running the Conversation Agent synchronously inside the
+# Teams Outgoing Webhook 5-second window. Beyond this we fall back to
+# the fully-async path so Teams never sees a timeout.
+SYNC_DECISION_TIMEOUT_SECONDS = 4.0
+
+
 def _process_webhook_in_background(message: str, sender: str | None) -> None:
     """Background task: run full two-agent flow and push result via Incoming Webhook."""
     try:
@@ -544,6 +557,16 @@ def _process_webhook_in_background(message: str, sender: str | None) -> None:
     except Exception:
         logger.exception(
             "Background webhook processing failed for message from='%s'", sender
+        )
+
+
+def _execute_decision_in_background(decision: dict, message: str, sender: str | None) -> None:
+    """Background task: run dispatcher + Explanation Agent for a ready decision."""
+    try:
+        execute_chat_decision(decision, message, user=sender, send_to_teams=True)
+    except Exception:
+        logger.exception(
+            "Background decision execution failed for message from='%s'", sender
         )
 
 
@@ -604,8 +627,32 @@ async def teams_outgoing_webhook(request: Request, background_tasks: BackgroundT
         "teams/webhook message from='%s' text_len=%d", sender, len(raw_text)
     )
 
-    background_tasks.add_task(_process_webhook_in_background, raw_text, sender)
-    return build_teams_response("⏳ Processing your request, I'll reply shortly...")
+    # Hybrid flow: try to make the (fast) decision synchronously so that
+    # clarification / refusal replies land INSIDE the user's post.
+    try:
+        stage, payload = await _asyncio.wait_for(
+            _asyncio.to_thread(decide_chat_message, raw_text),
+            timeout=SYNC_DECISION_TIMEOUT_SECONDS,
+        )
+    except _asyncio.TimeoutError:
+        # Agent 1 too slow for the 5s window — fall back to fully-async path.
+        logger.info("teams/webhook: sync decision timed out; falling back to async.")
+        background_tasks.add_task(_process_webhook_in_background, raw_text, sender)
+        return build_teams_response("⏳ Processing your request, I'll reply shortly...")
+    except Exception:
+        logger.exception("teams/webhook: sync decision failed; falling back to async.")
+        background_tasks.add_task(_process_webhook_in_background, raw_text, sender)
+        return build_teams_response("⏳ Processing your request, I'll reply shortly...")
+
+    if stage == "result":
+        # Clarification / refusal / unsupported / error — reply in-thread,
+        # nothing goes through the Incoming Webhook.
+        return build_teams_response(payload.reply)
+
+    # stage == "ready": metric query + explanation take 5-15s → background,
+    # final answer is delivered via the Incoming Webhook (Workflow).
+    background_tasks.add_task(_execute_decision_in_background, payload, raw_text, sender)
+    return build_teams_response("⏳ Querying metrics, I'll reply shortly...")
 
 
 # ---------------------------------------------------------------------------

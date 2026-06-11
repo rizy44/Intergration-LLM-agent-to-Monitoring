@@ -79,6 +79,64 @@ def _try_send_teams(message: str, title: str = "AKS Metrics Assistant") -> None:
 # ---------------------------------------------------------------------------
 
 
+def decide_chat_message(
+    message: str,
+    history: list[dict] | None = None,
+) -> tuple[str, "ChatControllerResult | dict"]:
+    """
+    Fast decision stage: input guards + Conversation Agent only.
+    No metric query, no Explanation Agent, no Teams send.
+
+    Returns
+    -------
+    ("result", ChatControllerResult)  for empty input, remediation refusal,
+                                      agent error, clarification / refused /
+                                      unsupported — the reply is final.
+    ("ready", decision_dict)          when the Conversation Agent mapped the
+                                      message to a tool; pass the dict to
+                                      execute_chat_decision().
+    """
+    message = message.strip()
+    if not message:
+        return "result", ChatControllerResult(
+            status="error", reply="Message must not be empty."
+        )
+
+    # --- Remediation guard (no API call) ---
+    if is_remediation_request(message):
+        reply = (
+            "Phase 1 is read-only. I cannot restart, scale, roll back, or modify "
+            "workloads. I can help inspect metrics and suggest read-only investigation "
+            "steps. Try asking: 'Show pod restarts in namespace prod' or "
+            "'Is the cluster healthy?'"
+        )
+        return "result", ChatControllerResult(status="refused", reply=reply)
+
+    # --- Conversation Agent ---
+    try:
+        decision = parse_user_message(message, history=history)
+    except RuntimeError as exc:
+        return "result", ChatControllerResult(
+            status="error",
+            reply=(
+                f"The AI service is temporarily unavailable. "
+                f"Please try again shortly. ({exc})"
+            ),
+        )
+
+    agent_status = decision.get("status")
+
+    if agent_status in ("needs_clarification", "refused", "unsupported"):
+        reply = decision.get("message", "Could you provide more details?")
+        return "result", ChatControllerResult(
+            status=agent_status,
+            reply=reply,
+            agent_decision=decision,
+        )
+
+    return "ready", decision
+
+
 def handle_chat_message(
     message: str,
     user: str | None = None,
@@ -106,47 +164,31 @@ def handle_chat_message(
     history       Optional prior conversation turns for multi-turn context.
                   Each dict: {"role": "user"|"assistant", "content": "..."}.
     """
+    stage, payload = decide_chat_message(message, history=history)
+
+    if stage == "result":
+        result: ChatControllerResult = payload
+        if send_to_teams and result.status != "error":
+            _try_send_teams(result.reply, title)
+        return result
+
+    return execute_chat_decision(
+        payload, message, user=user, send_to_teams=send_to_teams, title=title
+    )
+
+
+def execute_chat_decision(
+    decision: dict,
+    message: str,
+    user: str | None = None,
+    send_to_teams: bool = False,
+    title: str = "AKS Metrics Assistant",
+) -> ChatControllerResult:
+    """
+    Slow execution stage for a 'ready' Conversation Agent decision:
+    Tool Dispatcher → Explanation Agent → optional Teams send.
+    """
     message = message.strip()
-    if not message:
-        return ChatControllerResult(status="error", reply="Message must not be empty.")
-
-    # --- Remediation guard (no API call) ---
-    if is_remediation_request(message):
-        reply = (
-            "Phase 1 is read-only. I cannot restart, scale, roll back, or modify "
-            "workloads. I can help inspect metrics and suggest read-only investigation "
-            "steps. Try asking: 'Show pod restarts in namespace prod' or "
-            "'Is the cluster healthy?'"
-        )
-        result = ChatControllerResult(status="refused", reply=reply)
-        if send_to_teams:
-            _try_send_teams(reply, title)
-        return result
-
-    # --- Conversation Agent ---
-    try:
-        decision = parse_user_message(message, history=history)
-    except RuntimeError as exc:
-        return ChatControllerResult(
-            status="error",
-            reply=(
-                f"The AI service is temporarily unavailable. "
-                f"Please try again shortly. ({exc})"
-            ),
-        )
-
-    agent_status = decision.get("status")
-
-    if agent_status in ("needs_clarification", "refused", "unsupported"):
-        reply = decision.get("message", "Could you provide more details?")
-        result = ChatControllerResult(
-            status=agent_status,
-            reply=reply,
-            agent_decision=decision,
-        )
-        if send_to_teams:
-            _try_send_teams(reply, title)
-        return result
 
     # --- Tool Dispatcher ---
     metric_request = decision.get("request", {})
