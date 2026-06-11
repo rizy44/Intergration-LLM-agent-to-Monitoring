@@ -81,6 +81,58 @@ def send_daily_report(report_text: str) -> None:
     send_to_teams(report_text, title="Daily Production Health Report")
 
 
+def send_alert_to_teams(message: str, title: str = "Monitoring Alert") -> None:
+    """
+    Send an alert notification to the dedicated Teams ALERT channel.
+
+    Uses TEAMS_ALERT_WEBHOOK_URL — a separate Incoming Webhook from the
+    daily-report channel — so urgent alerts are not buried in reports.
+
+    Parameters
+    ----------
+    message : str
+        Markdown-formatted alert body (rule-based, no LLM).
+    title : str
+        Card title shown in Teams.
+
+    Raises
+    ------
+    RuntimeError
+        When the alert webhook URL is not configured or the request fails.
+    """
+    settings = get_settings()
+
+    if not settings.teams_alert_webhook_url:
+        logger.error("TEAMS_ALERT_WEBHOOK_URL is not configured.")
+        raise RuntimeError("Teams alert channel is not configured.")
+
+    if len(message) > TEAMS_MAX_LENGTH:
+        message = message[: TEAMS_MAX_LENGTH - 100] + "\n\n*(message truncated)*"
+
+    payload = _build_adaptive_card(title, message)
+
+    try:
+        response = httpx.post(
+            settings.teams_alert_webhook_url,
+            json=payload,
+            timeout=15,
+        )
+        response.raise_for_status()
+    except httpx.TimeoutException:
+        logger.warning("Teams alert webhook request timed out.")
+        raise RuntimeError("Could not deliver the Teams alert: request timed out.")
+    except httpx.HTTPStatusError as exc:
+        logger.error("Teams alert webhook HTTP error status=%s", exc.response.status_code)
+        raise RuntimeError(
+            f"Could not deliver the Teams alert: HTTP {exc.response.status_code}."
+        )
+    except httpx.RequestError:
+        logger.exception("Teams alert webhook connection error.")
+        raise RuntimeError("Could not deliver the Teams alert: connection error.")
+
+    logger.info("Teams alert delivered successfully. title=%s", title)
+
+
 def send_error_to_teams(error_message: str) -> None:
     """
     Send a safe, user-facing error notification to Teams.

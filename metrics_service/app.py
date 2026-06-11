@@ -20,6 +20,8 @@ Endpoints:
   POST /teams/chat                       - two-agent Teams chat flow (external caller)
   POST /teams/webhook                    - Teams Outgoing Webhook receiver (HMAC-validated)
   POST /daily-report                     - trigger daily report manually
+  POST /alerts/alertmanager              - Alertmanager webhook receiver (bearer-token auth)
+  POST /alerts/azure-check               - run one Azure metrics alert evaluation cycle
 """
 
 import json as _json
@@ -29,7 +31,12 @@ from typing import Annotated
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request
 from pydantic import BaseModel
 
+import hmac as _hmac
+
+from .alert_formatter import AlertPayloadError, format_alertmanager_payload
+from .azure_alert_check import run_azure_alert_check
 from .chat_controller import ChatControllerResult, handle_chat_message
+from .teams_sender import send_alert_to_teams
 from .config import get_settings, validate_azure_name, validate_cluster_name, validate_hostname, validate_label, validate_range, validate_source_name, validate_workload_name
 from .daily_report import run_daily_report
 from .datasources import get_azure_registry, get_registry
@@ -599,6 +606,105 @@ async def teams_outgoing_webhook(request: Request, background_tasks: BackgroundT
 
     background_tasks.add_task(_process_webhook_in_background, raw_text, sender)
     return build_teams_response("⏳ Processing your request, I'll reply shortly...")
+
+
+# ---------------------------------------------------------------------------
+# Alertmanager webhook receiver
+# ---------------------------------------------------------------------------
+
+
+@app.post("/alerts/alertmanager", tags=["Alerts"])
+async def alertmanager_webhook(request: Request):
+    """
+    Alertmanager webhook receiver (payload schema v4).
+
+    Flow: Prometheus rules → Alertmanager (group/dedup/repeat/resolve)
+    → this endpoint → rule-based formatter → dedicated Teams alert channel.
+
+    No LLM is involved anywhere in this path.
+
+    Security:
+    - Requires `Authorization: Bearer <ALERT_WEBHOOK_TOKEN>`; 401 otherwise.
+    - Fails closed with 503 when the token is not configured.
+    - Payload is validated before any Teams call; 422 on malformed input.
+    """
+    settings = get_settings()
+
+    if not settings.alert_webhook_token:
+        logger.error("ALERT_WEBHOOK_TOKEN is not configured.")
+        raise HTTPException(
+            status_code=503,
+            detail="Alert webhook is not configured on this service.",
+        )
+
+    auth_header = request.headers.get("Authorization", "")
+    expected = f"Bearer {settings.alert_webhook_token}"
+    if not _hmac.compare_digest(auth_header, expected):
+        raise HTTPException(status_code=401, detail="Invalid alert webhook token.")
+
+    try:
+        payload = await request.json()
+    except Exception:
+        raise HTTPException(status_code=422, detail="Invalid JSON payload.")
+
+    try:
+        title, body = format_alertmanager_payload(payload)
+    except AlertPayloadError:
+        # Safe message only — never echo the payload back
+        raise HTTPException(status_code=422, detail="Malformed Alertmanager payload.")
+
+    if not body:
+        logger.info("Alertmanager payload contained no alerts; nothing sent.")
+        return {"status": "ok", "sent": False, "alerts": 0}
+
+    try:
+        send_alert_to_teams(body, title=title)
+    except RuntimeError:
+        logger.error("Failed to deliver alert notification to Teams.")
+        raise HTTPException(
+            status_code=502,
+            detail="Alert received but could not be delivered to Teams.",
+        )
+
+    alert_count = len(payload.get("alerts", []))
+    logger.info("Alert notification sent to Teams. status=%s alerts=%d",
+                payload.get("status"), alert_count)
+    return {"status": "ok", "sent": True, "alerts": alert_count}
+
+
+@app.post("/alerts/azure-check", tags=["Alerts"])
+async def azure_alert_check_endpoint(request: Request):
+    """
+    Run one Azure metrics alert evaluation cycle (triggered by the
+    moni-agent-alert CronJob every 15 minutes).
+
+    Runs in the long-running service process so the firing/resolved
+    cooldown state survives between CronJob runs. Rule-based only — no LLM.
+
+    Security: same bearer token as /alerts/alertmanager (ALERT_WEBHOOK_TOKEN);
+    401 on mismatch, 503 fail-closed when unset.
+    """
+    settings = get_settings()
+
+    if not settings.alert_webhook_token:
+        logger.error("ALERT_WEBHOOK_TOKEN is not configured.")
+        raise HTTPException(
+            status_code=503,
+            detail="Alert checks are not configured on this service.",
+        )
+
+    auth_header = request.headers.get("Authorization", "")
+    expected = f"Bearer {settings.alert_webhook_token}"
+    if not _hmac.compare_digest(auth_header, expected):
+        raise HTTPException(status_code=401, detail="Invalid alert webhook token.")
+
+    try:
+        summary = run_azure_alert_check()
+    except Exception:
+        logger.exception("Unexpected error during Azure alert check.")
+        raise HTTPException(status_code=500, detail="Azure alert check failed. Check logs.")
+
+    return {"status": "ok", **summary}
 
 
 # ---------------------------------------------------------------------------

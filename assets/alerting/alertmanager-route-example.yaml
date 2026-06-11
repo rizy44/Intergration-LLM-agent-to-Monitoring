@@ -1,0 +1,37 @@
+# Alertmanager routing example — AI-powered AKS Metrics Assistant (Phase 1)
+#
+# Merge the receiver + route below into your existing Alertmanager config.
+# Alertmanager handles grouping, deduplication, repeat suppression, and
+# resolved notifications; the metrics service stays stateless.
+#
+# Replace:
+#   <METRICS_SERVICE_HOST>  — cluster-internal service DNS, e.g.
+#                             moni-agent.monitoring.svc.cluster.local:8000
+#   The bearer token must match ALERT_WEBHOOK_TOKEN on the metrics service
+#   (store it in a Kubernetes Secret and mount via credentials_file).
+
+route:
+  receiver: default
+  routes:
+    - receiver: metrics-assistant-teams
+      match_re:
+        severity: critical|warning
+      group_by: [alertname, namespace]
+      group_wait: 30s          # wait to batch alerts that fire together
+      group_interval: 5m       # min time before sending an updated group
+      repeat_interval: 4h      # cooldown before re-notifying a still-firing alert
+      continue: false
+
+receivers:
+  - name: metrics-assistant-teams
+    webhook_configs:
+      - url: "http://<METRICS_SERVICE_HOST>/alerts/alertmanager"
+        send_resolved: true    # also notify Teams when alerts recover
+        max_alerts: 20         # cap alerts per delivery
+        http_config:
+          authorization:
+            type: Bearer
+            # Preferred: read the token from a mounted Secret file
+            credentials_file: /etc/alertmanager/secrets/alert-webhook-token
+            # Alternative (not recommended): inline
+            # credentials: <ALERT_WEBHOOK_TOKEN>

@@ -1,0 +1,8 @@
+{{- $components := list "moni-agent-alert" -}}
+{{- range $name := $components }}
+{{- $config := index $.Values $name -}}
+{{- if and $config $config.enabled }}
+---
+{{ include "deploy-bot.cronjob" (dict "Values" $.Values "Release" $.Release "Chart" $.Chart "name" $name "config" $config) }}
+{{- end }}
+{{- end }}

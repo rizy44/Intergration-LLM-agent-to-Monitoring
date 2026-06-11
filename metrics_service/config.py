@@ -123,6 +123,27 @@ class Settings(BaseSettings):
     # Leave empty to disable the Outgoing Webhook endpoint.
     teams_outgoing_webhook_secret: str = ""
 
+    # Teams — Incoming Webhook for the dedicated ALERT channel.
+    # Separate from teams_webhook_url so alerts do not mix with daily reports.
+    teams_alert_webhook_url: str = ""
+
+    # Bearer token Alertmanager must present on POST /alerts/alertmanager.
+    # Endpoint fails closed (503) when unset. Store in a Kubernetes Secret.
+    alert_webhook_token: str = ""
+
+    # Azure metrics poll alerts (CronJob */15) — thresholds are env-tunable.
+    azure_alert_range: str = "1h"          # evaluation window per cycle
+    alert_repeat_minutes: int = 240        # cooldown before re-notifying a still-firing alert
+    azure_alert_app_error_rate: float = 5.0       # App Service error rate % (critical)
+    azure_alert_app_response_ms: float = 2000.0   # App Service avg response ms (warning)
+    azure_alert_db_cpu: float = 80.0               # MySQL/PostgreSQL CPU % (warning)
+    azure_alert_db_memory: float = 85.0            # MySQL/PostgreSQL memory % (warning)
+    azure_alert_db_storage: float = 85.0           # MySQL/PostgreSQL storage % (critical)
+    azure_alert_redis_load: float = 80.0           # Redis server load % (warning)
+    azure_alert_redis_memory: float = 85.0         # Redis used memory % (warning)
+    azure_alert_sb_deadletter: float = 100.0       # Service Bus dead-lettered msgs (warning)
+    azure_alert_sb_server_errors: float = 0.0      # Service Bus server errors (critical)
+
     # Azure Monitor REST API (management.azure.com) — separate from Prometheus sources
     azure_resource_name: str = "uat-monitor-workspace"
     azure_resource_tenant_id: str = ""
@@ -135,7 +156,7 @@ class Settings(BaseSettings):
     daily_report_sources: str = ""
     daily_report_namespaces: str = "default,kube-system,monitoring"
 
-    # Service
+    # Service settings
     metrics_service_port: int = 8000
     log_level: str = "INFO"
 

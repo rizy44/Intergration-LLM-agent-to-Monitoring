@@ -1,0 +1,49 @@
+moni-agent-alert:
+  enabled: true
+  # Azure metrics poll alerts — every 15 minutes
+  schedule: "*/15 * * * *"
+
+  image:
+    repository: "__crServer__/moni-agent"
+    tag: BuildID
+    pullPolicy: IfNotPresent
+
+  imagePullSecrets:
+    - name: regcred
+
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "250m"
+      memory: "256Mi"
+
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: kubernetes.io/os
+                operator: In
+                values:
+                  - linux
+
+  env:
+    # The trigger only POSTs to the long-running service — no Azure creds needed here.
+    # Cluster-internal service DNS of the metrics service (moni-agent).
+    - name: METRICS_SERVICE_URL
+      value: "__METRICS_SERVICE_URL__"
+
+    # Must match ALERT_WEBHOOK_TOKEN on the metrics service (Kubernetes Secret).
+    - name: ALERT_WEBHOOK_TOKEN
+      value: "__ALERT_WEBHOOK_TOKEN__"
+
+# Threshold tuning happens on the SERVICE deployment (moni-agent), not here.
+# Available env vars there (defaults in parentheses):
+#   AZURE_ALERT_RANGE (1h)              ALERT_REPEAT_MINUTES (240)
+#   AZURE_ALERT_APP_ERROR_RATE (5)      AZURE_ALERT_APP_RESPONSE_MS (2000)
+#   AZURE_ALERT_DB_CPU (80)             AZURE_ALERT_DB_MEMORY (85)
+#   AZURE_ALERT_DB_STORAGE (85)         AZURE_ALERT_REDIS_LOAD (80)
+#   AZURE_ALERT_REDIS_MEMORY (85)       AZURE_ALERT_SB_DEADLETTER (100)
+#   AZURE_ALERT_SB_SERVER_ERRORS (0)

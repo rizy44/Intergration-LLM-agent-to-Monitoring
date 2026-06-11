@@ -107,3 +107,9 @@ moni-agent:
       value: "__TEAMS_WEBHOOK_URL__"
     - name: TEAMS_OUTGOING_WEBHOOK_SECRET
       value: "__TEAMS_OUTGOING_WEBHOOK_SECRET__"
+
+    # Alerting — dedicated Teams alert channel + Alertmanager webhook auth
+    - name: TEAMS_ALERT_WEBHOOK_URL
+      value: "__TEAMS_ALERT_WEBHOOK_URL__"
+    - name: ALERT_WEBHOOK_TOKEN
+      value: "__ALERT_WEBHOOK_TOKEN__"

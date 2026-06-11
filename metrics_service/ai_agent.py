@@ -84,51 +84,6 @@ def analyze_metrics(tool_name: str, metric_data: dict[str, Any], user_question: 
         raise RuntimeError("AI analysis encountered an error. Please try again later.")
 
 
-def generate_daily_report_text(metrics_summary: dict[str, Any]) -> str:
-    """
-    Generate the full daily report text from a collected metrics summary.
-    Returns a formatted string suitable for sending to Microsoft Teams.
-    """
-    settings = get_settings()
-
-    if not settings.anthropic_api_key:
-        raise RuntimeError("AI analysis is not available. The API key is not configured.")
-
-    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-
-    daily_prompt = (
-        "Generate a Daily AKS Health Report for Microsoft Teams based on the "
-        "following metrics collected over the last 24 hours from the selected "
-        "Prometheus-compatible datasources for the daily report.\n\n"
-        "Format:\n"
-        "**Daily AKS Health Report**\n"
-        "Time Range: Last 24 hours\n"
-        "Scope: Selected metric sources\n"
-        "Status: <Healthy / Healthy with warnings / Critical>\n\n"
-        "**Summary:**\n"
-        "- <overall cross-source summary>\n\n"
-        "**Source Breakdown:**\n"
-        "- <source name>: <key health, CPU, memory, pod findings>\n\n"
-        "**Warnings:**\n"
-        "- <only if there are warnings; include source name when relevant>\n\n"
-        "**Suggested Investigation:**\n"
-        "- <read-only steps, only if needed>\n\n"
-        "Keep it concise. If a source has missing or unavailable metrics, mention "
-        "that as a data availability issue without treating it as a confirmed "
-        "cluster incident. Do not suggest remediation or kubectl commands.\n\n"
-        f"Metrics data:\n```json\n{json.dumps(metrics_summary, indent=2)}\n```"
-    )
-
-    try:
-        response = client.messages.create(
-            model=settings.anthropic_model,
-            max_tokens=settings.anthropic_max_tokens,
-            system=SYSTEM_PROMPT,
-            messages=[
-                {"role": "user", "content": daily_prompt},
-            ],
-        )
-        return response.content[0].text.strip()
-    except anthropic.APIError as exc:
-        logger.error("Anthropic API error during daily report: %s", type(exc).__name__)
-        raise RuntimeError("Could not generate the daily report text. Please try again later.")
+# NOTE: The LLM daily-report generator (generate_daily_report_text) was removed.
+# The daily report is fully rule-based: see report_formatter.format_daily_report().
+# Do not reintroduce LLM calls into the daily-report or alert paths.

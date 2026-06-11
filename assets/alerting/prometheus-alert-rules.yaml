@@ -1,0 +1,83 @@
+# Prometheus alerting rules — AI-powered AKS Metrics Assistant (Phase 1)
+#
+# Single source of truth for alert THRESHOLDS. Tune the values below and
+# reload Prometheus — no metrics-service code change or redeploy needed.
+#
+# Every rule must carry:
+#   labels.severity        — critical | warning  (drives Teams indicator color)
+#   annotations.summary    — short human-readable line shown in Teams
+#   annotations.description (optional) — fallback when summary is absent
+#
+# Apply: add this file to your Prometheus rule_files (or the
+# PrometheusRule CRD if using kube-prometheus-stack) and reload.
+
+groups:
+  - name: aks-metrics-assistant.node
+    rules:
+      - alert: NodeHighCPU
+        expr: |
+          100 * (1 - avg by (node) (rate(node_cpu_seconds_total{mode="idle"}[5m]))) > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Node {{ $labels.node }} CPU usage is above 85% (current: {{ $value | printf \"%.1f\" }}%)."
+
+      - alert: NodeHighMemory
+        expr: |
+          100 * (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 90
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Node {{ $labels.instance }} memory usage is above 90% (current: {{ $value | printf \"%.1f\" }}%)."
+
+      - alert: NodeNotReady
+        expr: |
+          kube_node_status_condition{condition="Ready",status="true"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Node {{ $labels.node }} has been NotReady for more than 5 minutes."
+
+      - alert: NodeDiskPressure
+        expr: |
+          100 * (1 - node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}) > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Node {{ $labels.instance }} filesystem {{ $labels.mountpoint }} is above 85% used (current: {{ $value | printf \"%.1f\" }}%)."
+
+  - name: aks-metrics-assistant.workload
+    rules:
+      - alert: PodCrashLooping
+        expr: |
+          increase(kube_pod_container_status_restarts_total[15m]) > 3
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} restarted more than 3 times in 15 minutes (possible crash loop)."
+
+      - alert: PodNotHealthy
+        expr: |
+          sum by (namespace, pod) (kube_pod_status_phase{phase=~"Pending|Failed|Unknown"}) > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} has been in a non-running phase for more than 10 minutes."
+
+  - name: aks-metrics-assistant.service
+    rules:
+      - alert: ServiceHighErrorRate
+        expr: |
+          100 * sum by (service, namespace) (rate(http_requests_total{status=~"5.."}[5m]))
+            / sum by (service, namespace) (rate(http_requests_total[5m])) > 5
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.namespace }}/{{ $labels.service }} 5xx error rate is above 5% (current: {{ $value | printf \"%.1f\" }}%)."
