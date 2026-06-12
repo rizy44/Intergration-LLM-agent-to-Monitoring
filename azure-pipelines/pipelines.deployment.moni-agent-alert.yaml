@@ -8,6 +8,10 @@ resources:
       type: git
       name: DevOps/Pipeline_Templates
       ref: refs/heads/pipeline-mt5-checker
+  pipelines:
+    - pipeline: moniAgentBuild
+      source: 'Moni Agent'        # PHẢI khớp đúng tên pipeline build đã đăng ký trên ADO
+      trigger: true               # tự chạy sau khi pipeline build chính thành công
 extends:
   template: pipeline.moni-agent.yaml@pipeline-templates
   parameters:
@@ -20,4 +24,5 @@ extends:
     ServicePath: '.'
     isDeployAks: true
     isDeployAppService: false
-    isBuildStage: true
+    isBuildStage: false
+    ImageTag: "$(resources.pipeline.moniAgentBuild.runID)"
