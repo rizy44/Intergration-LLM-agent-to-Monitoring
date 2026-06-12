@@ -152,6 +152,10 @@ class Settings(BaseSettings):
     azure_resource_subscription_id: str = ""
     azure_resource_description: str = "Azure Monitor Workspace"
 
+    # PostgreSQL alert storage (empty = storage disabled, in-memory fallback)
+    database_url: str = ""
+    alert_retention_days: int = 90
+
     # Daily report scoping
     daily_report_sources: str = ""
     daily_report_namespaces: str = "default,kube-system,monitoring"

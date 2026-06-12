@@ -41,8 +41,31 @@ from .datasources.azure_monitor.tools import (
     get_mysql_performance,
     get_postgres_performance,
 )
+from . import storage as _storage
 
 logger = logging.getLogger(__name__)
+
+# Map allowed range strings to hours for the alert-history tool
+_RANGE_TO_HOURS = {"1h": 1, "6h": 6, "12h": 12, "24h": 24, "2d": 48, "7d": 168}
+
+
+def get_recent_alerts_tool(range_str: str = "24h") -> dict[str, Any]:
+    """
+    Read-only alert history from the ledger (alerts table).
+    Returns structured JSON for the Explanation Agent.
+    """
+    hours = _RANGE_TO_HOURS.get(range_str, 24)
+    episodes = _storage.get_recent_alerts(hours=hours, limit=50)
+    if episodes is None:
+        raise RuntimeError(
+            "Alert history is not available (storage is not configured or unreachable)."
+        )
+    return {
+        "window_hours": hours,
+        "count": len(episodes),
+        "alerts": episodes,
+        "source": {"name": "alert-history-db", "description": "moni-agent PostgreSQL alert ledger"},
+    }
 
 # ---------------------------------------------------------------------------
 # Whitelist — maps tool name -> callable
@@ -69,6 +92,8 @@ ALLOWED_TOOL_DISPATCH: dict[str, Any] = {
     "get_app_service_performance":    get_app_service_performance,
     "get_mysql_performance":          get_mysql_performance,
     "get_postgres_performance":       get_postgres_performance,
+    # Alert history (PostgreSQL ledger, read-only)
+    "get_recent_alerts":              get_recent_alerts_tool,
 }
 
 
@@ -312,6 +337,9 @@ def _call_tool(
         if not server_name:
             raise ToolDispatchError("get_postgres_performance requires a server_name.")
         return fn(resource_group=resource_group, server_name=server_name, range=range_str, source_override=source)
+
+    if tool_name == "get_recent_alerts":
+        return fn(range_str)
 
     # Should never reach here — whitelist check above already guards this
     raise ToolDispatchError(f"No dispatch mapping for tool '{tool_name}'.")

@@ -76,3 +76,9 @@ moni-agent-daily:
       value: "__TEAMS_WEBHOOK_URL__"
     - name: TEAMS_OUTGOING_WEBHOOK_SECRET
       value: "__TEAMS_OUTGOING_WEBHOOK_SECRET__"
+
+    # PostgreSQL alert storage — daily report reads alert summary + purges old rows
+    - name: DATABASE_URL
+      value: "__DATABASE_URL__"
+    - name: ALERT_RETENTION_DAYS
+      value: "90"

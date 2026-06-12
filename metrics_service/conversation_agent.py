@@ -62,6 +62,8 @@ ALLOWED_TOOLS = frozenset([
     "get_app_service_performance",
     "get_mysql_performance",
     "get_postgres_performance",
+    # Alert history
+    "get_recent_alerts",
 ])
 
 ALLOWED_RANGES = frozenset(["1h", "6h", "12h", "24h", "2d", "7d"])
@@ -332,6 +334,19 @@ get_postgres_performance
   Required : server_name (set to PostgreSQL server name), resource_group (look up from table below)
   Optional : range (default 24h), source
   Output   : server_name=<postgres_name>, resource_group=<group>, service=null
+
+--- GROUP 8: Alert history ---
+
+get_recent_alerts
+  Triggers : "what alerts fired", "any alerts last night", "alerts today", "recent alerts",
+             "alert history", "was there an incident", "có alert gì", "alert đêm qua",
+             "what went wrong yesterday", "still firing alerts"
+  Required : (none — range defaults to 24h)
+  Optional : range (1h, 6h, 12h, 24h, 2d, 7d — map "last night"/"yesterday" → 24h,
+             "this week" → 7d, "just now"/"past hour" → 1h)
+  Output   : all other fields null
+  Rule     : Read-only query against the alert history database. Use for PAST alerts;
+             for current live metrics use the other tools.
 
 === AZURE RESOURCE GROUP LOOKUP TABLE ===
 

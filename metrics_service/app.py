@@ -35,6 +35,7 @@ import hmac as _hmac
 
 import asyncio as _asyncio
 
+from . import storage as _storage
 from .alert_formatter import AlertPayloadError, format_alertmanager_payload
 from .azure_alert_check import run_azure_alert_check
 from .chat_controller import (
@@ -104,6 +105,12 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+
+@app.on_event("startup")
+def _init_alert_storage() -> None:
+    """Create alert storage tables if DATABASE_URL is configured (best-effort)."""
+    _storage.init_db()
 
 # ---------------------------------------------------------------------------
 # Shared query parameter docs
@@ -550,6 +557,47 @@ def teams_chat(request: TeamsChatRequest):
 SYNC_DECISION_TIMEOUT_SECONDS = 4.0
 
 
+def _record_alertmanager_episodes(payload: dict) -> None:
+    """Record Alertmanager alerts as episodes in the ledger (best-effort)."""
+    from datetime import datetime
+
+    for alert in payload.get("alerts", []):
+        try:
+            labels = alert.get("labels", {}) or {}
+            annotations = alert.get("annotations", {}) or {}
+            alertname = str(labels.get("alertname", "UnknownAlert"))
+            project = labels.get("namespace")
+            resource = (labels.get("pod") or labels.get("service")
+                        or labels.get("node") or labels.get("instance"))
+            fingerprint = alert.get("fingerprint") or (
+                f"k8s|{project}|{resource}|{alertname}"
+            )
+            starts_at = None
+            raw_start = str(alert.get("startsAt", ""))
+            if raw_start and not raw_start.startswith("0001"):
+                try:
+                    starts_at = datetime.fromisoformat(raw_start.replace("Z", "+00:00"))
+                except ValueError:
+                    pass
+
+            if str(alert.get("status", "firing")).lower() == "resolved":
+                _storage.record_resolved(fingerprint)
+            else:
+                _storage.record_firing(
+                    source="kubernetes",
+                    fingerprint=fingerprint,
+                    alertname=alertname,
+                    severity=str(labels.get("severity", "warning")).lower(),
+                    project=project,
+                    resource=resource,
+                    summary=annotations.get("summary") or annotations.get("description"),
+                    payload=alert,
+                    starts_at=starts_at,
+                )
+        except Exception:
+            logger.warning("Failed to record alert episode (non-fatal).", exc_info=True)
+
+
 def _process_webhook_in_background(message: str, sender: str | None) -> None:
     """Background task: run full two-agent flow and push result via Incoming Webhook."""
     try:
@@ -703,6 +751,9 @@ async def alertmanager_webhook(request: Request):
     if not body:
         logger.info("Alertmanager payload contained no alerts; nothing sent.")
         return {"status": "ok", "sent": False, "alerts": 0}
+
+    # Episode ledger (best-effort — never blocks delivery)
+    _record_alertmanager_episodes(payload)
 
     try:
         send_alert_to_teams(body, title=title)

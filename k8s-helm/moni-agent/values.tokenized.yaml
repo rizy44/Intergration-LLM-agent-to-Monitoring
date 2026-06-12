@@ -113,3 +113,9 @@ moni-agent:
       value: "__TEAMS_ALERT_WEBHOOK_URL__"
     - name: ALERT_WEBHOOK_TOKEN
       value: "__ALERT_WEBHOOK_TOKEN__"
+
+    # PostgreSQL alert storage (in-cluster moni-agent-db; empty = disabled)
+    - name: DATABASE_URL
+      value: "__DATABASE_URL__"
+    - name: ALERT_RETENTION_DAYS
+      value: "90"

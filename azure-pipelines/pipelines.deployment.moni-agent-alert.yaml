@@ -1,0 +1,23 @@
+name: Moni Agent Alert - $(Build.BuildId)
+
+trigger: none
+
+resources:
+  repositories:
+    - repository: pipeline-templates
+      type: git
+      name: DevOps/Pipeline_Templates
+      ref: refs/heads/pipeline-mt5-checker
+extends:
+  template: pipeline.moni-agent.yaml@pipeline-templates
+  parameters:
+    ServiceName: 'moni-agent-alert'
+    ImageName: 'moni-agent'
+    VariableGroupNamePrefix: 'MoniAgent-<env>'
+    ServiceConnection: 'LFGLOBALTECH-CONTRIBUTOR-PORTAL-DataPlatform'
+    DockerfilePath: 'Dockerfile'
+    DockerfileContext: '.'
+    ServicePath: '.'
+    isDeployAks: true
+    isDeployAppService: false
+    isBuildStage: false

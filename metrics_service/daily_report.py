@@ -23,8 +23,9 @@ from .datasources.azure_monitor.tools import (
     get_redis_performance,
     get_service_bus_performance,
 )
+from . import storage
 from .prod_projects import PROD_PROJECTS
-from .report_formatter import format_daily_report
+from .report_formatter import _DIVIDER, format_alerts_24h_section, format_daily_report
 from .config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -124,6 +125,19 @@ def run_daily_report() -> None:
         logger.exception("Unexpected error formatting daily report.")
         send_error_to_teams("The daily report could not be generated because report formatting failed.")
         return
+
+    # Alerts-24h section from the ledger (best-effort; skipped when storage off/down)
+    try:
+        if storage.storage_enabled():
+            storage.init_db()
+            alert_section = format_alerts_24h_section(storage.get_alert_summary_24h())
+            if alert_section:
+                report_text += f"\n\n{_DIVIDER}\n\n{alert_section}"
+            purged = storage.purge_old_alerts(get_settings().alert_retention_days)
+            if purged:
+                logger.info("Purged %d alert episodes past retention.", purged)
+    except Exception:
+        logger.exception("Alert summary section failed (non-fatal); sending report without it.")
 
     try:
         send_daily_report(report_text)

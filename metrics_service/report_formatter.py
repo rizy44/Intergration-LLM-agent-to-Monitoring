@@ -283,3 +283,48 @@ def format_daily_report(
         report = report[:19_900] + f"\n\n{_DIVIDER}\n\n_(report truncated)_"
 
     return report
+
+
+# ---------------------------------------------------------------------------
+# Alerts-24h section (data from storage.get_alert_summary_24h, rule-based)
+# ---------------------------------------------------------------------------
+
+_SEVERITY_ORDER = ("critical", "warning", "info")
+_SEVERITY_ICONS_24H = {"critical": "🔴", "warning": "🟠", "info": "⚪"}
+
+
+def format_alerts_24h_section(summary: dict | None) -> str:
+    """
+    Format the "Alerts in last 24 hours" section from the alert ledger
+    summary. Rule-based only — no LLM.
+    """
+    if summary is None:
+        return ""
+
+    if summary.get("total", 0) == 0:
+        return "🚨 **Alerts — Last 24h**\n\nNo alerts were recorded. ✅"
+
+    lines = ["🚨 **Alerts — Last 24h**"]
+
+    by_severity = summary.get("by_severity", {})
+    counts = [
+        f"{_SEVERITY_ICONS_24H[s]} {s}: {by_severity[s]}"
+        for s in _SEVERITY_ORDER if by_severity.get(s)
+    ]
+    extra = [f"{s}: {c}" for s, c in by_severity.items() if s not in _SEVERITY_ORDER]
+    lines.append("  ·  ".join(counts + extra))
+
+    still = summary.get("still_firing", 0)
+    if still:
+        lines.append(f"⚠️ Still firing now: **{still}**")
+    else:
+        lines.append("All alerts resolved. ✅")
+
+    top = summary.get("top_alerts", [])
+    if top:
+        lines.append("Top recurring:")
+        for t in top[:3]:
+            resource = t.get("resource") or "—"
+            lines.append(f"- {t['alertname']} ({resource}): {t['times']}×")
+
+    return "\n\n".join(lines)

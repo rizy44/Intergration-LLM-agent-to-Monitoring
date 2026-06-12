@@ -23,6 +23,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 
+from . import storage
 from .alert_formatter import format_alertmanager_payload
 from .config import get_settings
 from .datasources.azure_monitor.tools import (
@@ -81,12 +82,48 @@ _COLLECTORS: dict[str, tuple[Callable[..., dict], str]] = {
 }
 
 # In-memory alert state: (project, resource, alertname) → {"last_sent": datetime}
+# Used as primary store when DATABASE_URL is unset, and as fallback when
+# the database is unavailable (best-effort semantics).
 _alert_state: dict[tuple[str, str, str], dict[str, Any]] = {}
 
 
 def reset_alert_state() -> None:
     """Clear all alert state (used by tests)."""
     _alert_state.clear()
+
+
+def _state_key(key: tuple[str, str, str]) -> str:
+    project, resource, alertname = key
+    return f"azure|{project}|{resource}|{alertname}"
+
+
+def _fingerprint(key: tuple[str, str, str]) -> str:
+    project, resource, alertname = key
+    return f"azure|{project}|{resource}|{alertname}"
+
+
+def _get_last_sent(key: tuple[str, str, str]):
+    """Cooldown lookup: DB first (persistent), in-memory fallback."""
+    if storage.storage_enabled():
+        state = storage.get_state(_state_key(key))
+        if state is not None:
+            return state["last_sent"]
+    state = _alert_state.get(key)
+    return state["last_sent"] if state else None
+
+
+def _set_last_sent(key: tuple[str, str, str], now) -> None:
+    _alert_state[key] = {"last_sent": now}
+    if storage.storage_enabled():
+        existing = storage.get_state(_state_key(key))
+        firing_since = existing["firing_since"] if existing else now
+        storage.set_state(_state_key(key), firing_since=firing_since, last_sent=now)
+
+
+def _clear_state(key: tuple[str, str, str]) -> None:
+    _alert_state.pop(key, None)
+    if storage.storage_enabled():
+        storage.delete_state(_state_key(key))
 
 
 def run_azure_alert_check() -> dict[str, Any]:
@@ -133,22 +170,44 @@ def run_azure_alert_check() -> dict[str, Any]:
 
                     if value is not None and float(value) > threshold:
                         breached_keys.add(key)
-                        state = _alert_state.get(key)
-                        if state and now - state["last_sent"] < cooldown:
+                        # Episode ledger: idempotent — only opens a row if none open
+                        storage.record_firing(
+                            source="azure",
+                            fingerprint=_fingerprint(key),
+                            alertname=alertname,
+                            severity=severity,
+                            project=project_name,
+                            resource=resource_name,
+                            metric_field=field,
+                            value=float(value),
+                            threshold=threshold,
+                            summary=(
+                                f"{project_name}/{resource_name}: {field} is {value} "
+                                f"(threshold: {threshold})."
+                            ),
+                            starts_at=now,
+                        )
+                        last_sent = _get_last_sent(key)
+                        if last_sent is not None and now - last_sent < cooldown:
                             summary["suppressed"] += 1
                             continue
-                        _alert_state[key] = {"last_sent": now}
+                        _set_last_sent(key, now)
                         summary["firing"] += 1
                         firing_alerts.append(_synthetic_alert(
                             alertname, severity, project_name, resource_name,
                             field, value, threshold, now,
                         ))
 
-    # Resolved: previously-firing keys that were evaluated this cycle and are no longer breached
-    for key in list(_alert_state.keys()):
-        if key in evaluated_keys and key not in breached_keys:
+    # Resolved: evaluated keys that had state (memory or DB) and are no longer breached
+    for key in evaluated_keys - breached_keys:
+        had_state = key in _alert_state or (
+            storage.storage_enabled()
+            and storage.get_state(_state_key(key)) is not None
+        )
+        if had_state:
             project_name, resource_name, alertname = key
-            del _alert_state[key]
+            _clear_state(key)
+            storage.record_resolved(_fingerprint(key), resolved_at=now)
             summary["resolved"] += 1
             resolved_alerts.append(_synthetic_alert(
                 alertname, "info", project_name, resource_name,
