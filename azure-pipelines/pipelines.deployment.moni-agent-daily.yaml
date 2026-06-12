@@ -20,4 +20,4 @@ extends:
     ServicePath: '.'
     isDeployAks: true
     isDeployAppService: false
-    isBuildStage: false
+    isBuildStage: true 

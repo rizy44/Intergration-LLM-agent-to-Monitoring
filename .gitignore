@@ -48,3 +48,4 @@ logs/
 scripts/
 skills/
 tests/
+k8s-manifests/
