@@ -33,7 +33,7 @@ moni-agent-alert:
     # The trigger only POSTs to the long-running service — no Azure creds needed here.
     # Cluster-internal service DNS of the metrics service (moni-agent).
     - name: METRICS_SERVICE_URL
-      value: "__METRICS_SERVICE_URL__"
+      value: "http://moni-agent-moni-agent.moni-agent.svc.cluster.local"
 
     # Must match ALERT_WEBHOOK_TOKEN on the metrics service (Kubernetes Secret).
     - name: ALERT_WEBHOOK_TOKEN

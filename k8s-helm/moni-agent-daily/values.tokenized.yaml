@@ -29,56 +29,58 @@ moni-agent-daily:
                   - linux
 
   env:
-    # In-cluster Prometheus — credentials and URL vary per environment
+    # ---- NON-SECRET config: set directly (safe to commit) ----
     - name: PROMETHEUS_NODE_URL
-      value: "__PROMETHEUS_NODE_URL__"
+      value: "http://192.168.100.230:9090"
     - name: PROMETHEUS_NODE_USERNAME
-      value: "__PROMETHEUS_NODE_USERNAME__"
+      value: "admin"
+
+    - name: PROMETHEUS_AKS_URL
+      value: "https://uat-monitor-workspace-z91u.canadacentral.prometheus.monitor.azure.com"
+    - name: PROMETHEUS_AKS_TENANT_ID
+      value: "7eb270e6-7c74-4159-a883-ca73dd7f5868"
+    - name: PROMETHEUS_AKS_CLIENT_ID
+      value: "c611f642-d3b2-4eae-98ff-cefe2abae8c0"
+    - name: PROMETHEUS_AKS_SUBSCRIPTION_ID
+      value: "753d40c4-040a-435d-98b1-8b6236a4e873"
+
+    - name: DAILY_REPORT_SOURCES
+      value: "Prometheus,uat-monitor-workspace-prometheus"
+    - name: DAILY_REPORT_NAMESPACES
+      value: "default,kube-system,monitoring"
+
+    - name: AZURE_RESOURCE_NAME
+      value: "uat-monitor-workspace"
+    - name: AZURE_RESOURCE_TENANT_ID
+      value: "7eb270e6-7c74-4159-a883-ca73dd7f5868"
+    - name: AZURE_RESOURCE_CLIENT_ID
+      value: "c611f642-d3b2-4eae-98ff-cefe2abae8c0"
+    - name: AZURE_RESOURCE_SUBSCRIPTION_ID
+      value: "753d40c4-040a-435d-98b1-8b6236a4e873"
+
+    - name: ANTHROPIC_MODEL
+      value: "claude-haiku-4-5"
+
+    - name: ALERT_RETENTION_DAYS
+      value: "90"
+
+    # ---- SECRETS: tokens supplied by ADO variable group ----
     - name: PROMETHEUS_NODE_PASSWORD
       value: "__PROMETHEUS_NODE_PASSWORD__"
-
-    # Azure Monitor Managed Prometheus — Azure AD secrets
-    - name: PROMETHEUS_AKS_URL
-      value: "__PROMETHEUS_AKS_URL__"
-    - name: PROMETHEUS_AKS_TENANT_ID
-      value: "__PROMETHEUS_AKS_TENANT_ID__"
-    - name: PROMETHEUS_AKS_CLIENT_ID
-      value: "__PROMETHEUS_AKS_CLIENT_ID__"
     - name: PROMETHEUS_AKS_CLIENT_SECRET
       value: "__PROMETHEUS_AKS_CLIENT_SECRET__"
-    - name: PROMETHEUS_AKS_SUBSCRIPTION_ID
-      value: "__PROMETHEUS_AKS_SUBSCRIPTION_ID__"
-
-    # Daily report scope — varies per environment
-    - name: DAILY_REPORT_SOURCES
-      value: "__DAILY_REPORT_SOURCES__"
-    - name: DAILY_REPORT_NAMESPACES
-      value: "__DAILY_REPORT_NAMESPACES__"
-
-    # Azure Monitor REST API (management.azure.com) — for App Service, MySQL, PostgreSQL metrics
-    - name: AZURE_RESOURCE_NAME
-      value: "__AZURE_RESOURCE_NAME__"
-    - name: AZURE_RESOURCE_TENANT_ID
-      value: "__AZURE_RESOURCE_TENANT_ID__"
-    - name: AZURE_RESOURCE_CLIENT_ID
-      value: "__AZURE_RESOURCE_CLIENT_ID__"
     - name: AZURE_RESOURCE_CLIENT_SECRET
       value: "__AZURE_RESOURCE_CLIENT_SECRET__"
-    - name: AZURE_RESOURCE_SUBSCRIPTION_ID
-      value: "__AZURE_RESOURCE_SUBSCRIPTION_ID__"
-
-    # Anthropic
     - name: ANTHROPIC_API_KEY
       value: "__ANTHROPIC_API_KEY__"
-
-    # Microsoft Teams
     - name: TEAMS_WEBHOOK_URL
       value: "__TEAMS_WEBHOOK_URL__"
     - name: TEAMS_OUTGOING_WEBHOOK_SECRET
       value: "__TEAMS_OUTGOING_WEBHOOK_SECRET__"
 
-    # PostgreSQL alert storage — daily report reads alert summary + purges old rows
+    # PostgreSQL alert storage — pulled from the existing moni-agent-db Secret
     - name: DATABASE_URL
-      value: "__DATABASE_URL__"
-    - name: ALERT_RETENTION_DAYS
-      value: "90"
+      valueFrom:
+        secretKeyRef:
+          name: moni-agent-db-secret
+          key: DATABASE_URL
