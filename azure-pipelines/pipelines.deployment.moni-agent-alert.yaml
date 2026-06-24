@@ -10,8 +10,8 @@ resources:
       ref: refs/heads/pipeline-mt5-checker
   pipelines:
     - pipeline: moniAgentBuild
-      source: 'Moni Agent'        # PHẢI khớp đúng tên pipeline build đã đăng ký trên ADO
-      trigger: true               # tự chạy sau khi pipeline build chính thành công
+      source: 'Moni Agent'        
+      trigger: true               
 extends:
   template: pipeline.moni-agent.yaml@pipeline-templates
   parameters:

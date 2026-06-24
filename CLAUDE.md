@@ -180,7 +180,7 @@ Validates the Conversation Agent's decision and calls the correct metric tool.
 Only tools listed in `ALLOWED_TOOL_DISPATCH` can be called. All inputs are
 validated before execution. Raises `ToolDispatchError` for unsafe or missing inputs.
 
-### Agent 2 — Explanation Agent (`ai_agent.py` — `analyze_metrics`)
+### Agent 2 — Explanation Agent (`explanation_agent.py` — `analyze_metrics`)
 
 Receives the structured metric JSON from the Tool Dispatcher and the original
 user question. Returns a concise, plain-English explanation for Teams.

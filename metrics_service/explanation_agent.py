@@ -1,5 +1,5 @@
 """
-ai_agent.py — Anthropic Claude AI Analysis Layer.
+explanation_agent.py — Anthropic Claude AI Analysis Layer (Explanation Agent).
 
 Receives structured JSON from backend metric tools and returns a
 human-readable explanation. No PromQL, no remediation, no secrets.
@@ -82,8 +82,3 @@ def analyze_metrics(tool_name: str, metric_data: dict[str, Any], user_question: 
     except anthropic.APIError as exc:
         logger.error("Anthropic API error: %s", type(exc).__name__)
         raise RuntimeError("AI analysis encountered an error. Please try again later.")
-
-
-# NOTE: The LLM daily-report generator (generate_daily_report_text) was removed.
-# The daily report is fully rule-based: see report_formatter.format_daily_report().
-# Do not reintroduce LLM calls into the daily-report or alert paths.

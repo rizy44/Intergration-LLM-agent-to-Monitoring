@@ -20,7 +20,7 @@ moni-agent:
   ingress:
     enabled: true
     className: "nginx"
-    host: "moni-agent.internal.local"
+    host: "moni-agent.wecopytrade.com"
     tlsSecret: "moni-agent-tls"
 
   livenessProbe:
@@ -99,8 +99,9 @@ moni-agent:
       value: "753d40c4-040a-435d-98b1-8b6236a4e873"
 
     # Anthropic model (override code default claude-sonnet-4-6 -> haiku)
+    # Dùng model ID đầy đủ có hậu tố ngày; alias "claude-haiku-4-5" có thể gây 400.
     - name: ANTHROPIC_MODEL
-      value: "claude-haiku-4-5"
+      value: "claude-haiku-4-5-20251001"
 
     # Static
     - name: ALERT_RETENTION_DAYS

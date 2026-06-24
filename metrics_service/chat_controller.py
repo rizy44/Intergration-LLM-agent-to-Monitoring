@@ -16,7 +16,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from .ai_agent import analyze_metrics
+from .explanation_agent import analyze_metrics
 from .conversation_agent import parse_user_message
 from .teams_sender import send_to_teams as _send_teams_message
 from .tool_dispatcher import ToolDispatchError, dispatch_tool
