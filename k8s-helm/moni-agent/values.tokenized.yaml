@@ -21,7 +21,7 @@ moni-agent:
     enabled: true
     className: "nginx"
     host: "moni-agent.wecopytrade.com"
-    tlsSecret: "moni-agent-tls"
+    tlsSecret: "wecopytrade"
 
   livenessProbe:
     httpGet:
