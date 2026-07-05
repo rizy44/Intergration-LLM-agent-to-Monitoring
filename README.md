@@ -1,6 +1,19 @@
 # MoniAgent
 
-![MoniAgent logo](assets/moniagent-logo.png)
+<p align="center">
+  <img src="assets/moniagent-logo.png" alt="MoniAgent logo" width="260">
+</p>
+
+<p align="center">
+  <img alt="Azure" src="https://img.shields.io/badge/Azure-ready-0078D4?logo=microsoftazure&logoColor=white">
+  <img alt="AKS" src="https://img.shields.io/badge/AKS-observability-326CE5?logo=kubernetes&logoColor=white">
+  <img alt="Prometheus" src="https://img.shields.io/badge/Prometheus-metrics-E6522C?logo=prometheus&logoColor=white">
+  <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-service-009688?logo=fastapi&logoColor=white">
+  <img alt="Microsoft Teams" src="https://img.shields.io/badge/Microsoft%20Teams-reports%20%26%20chat-6264A7?logo=microsoftteams&logoColor=white">
+  <img alt="Docker" src="https://img.shields.io/badge/Docker-containerized-2496ED?logo=docker&logoColor=white">
+  <img alt="Helm" src="https://img.shields.io/badge/Helm-deployable-0F1689?logo=helm&logoColor=white">
+  <img alt="Read only" src="https://img.shields.io/badge/Phase%201-read--only-success">
+</p>
 
 MoniAgent is a read-only AI-powered observability assistant for AKS and Azure
 workloads. It collects structured metrics from controlled backend tools,
